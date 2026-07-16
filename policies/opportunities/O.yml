@@ -1,0 +1,24 @@
+version: 1
+family: O
+title: External / contextual (allergy/UV/flu/events)
+methods: [D]
+enabled: true
+rule:
+  id: contextual_trigger
+  consent_class: contextual_outreach
+  priority: 0.60
+  conditions:
+    all:
+      - {field: contextual_trigger_flag, operator: eq, value: true}
+  evidence:
+    contextual_trigger_flag: {feature: contextual_trigger_flag}
+delivery:
+  template:
+    name: velo_contextual_care_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. A current external health context may make a care review useful. Reply BOOK for guidance, or STOP to opt out."
+activation:
+  source_owner: external context service
+  required_features: [contextual_trigger_flag]
+

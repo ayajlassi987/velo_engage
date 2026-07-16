@@ -1,0 +1,13 @@
+{
+  "rows_full": 110000,
+  "rows_train": 80411,
+  "training_share": 0.7310090909090909,
+  "overall_no_show_rate_full_observed": 0.1726090909090909,
+  "no_show_rate_train": 0.2770019027247516,
+  "same_day_no_show_rate": null,
+  "vip_no_show_rate": 0.18138726497076949,
+  "late_cancel_count": 3845,
+  "early_cancel_count": 7707,
+  "rescheduled_count": 4194,
+  "walkin_count": 14516
+}

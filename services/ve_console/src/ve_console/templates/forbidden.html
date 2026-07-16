@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="content-section">
+    <div class="empty-state">
+      <i data-lucide="lock"></i>
+      <strong>Owner access required</strong>
+      <span>{{ detail or "This page is limited to the clinic owner." }} Signed in as {{ user.name if user else "unknown" }} ({{ user.roles|join(", ") if user else "no role" }}).</span>
+      <a class="icon-button" href="/overview" style="margin-top: 16px;">Back to Overview</a>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,382 @@
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ve_postgres
+    environment:
+      POSTGRES_USER: velo
+      POSTGRES_PASSWORD: velo_secret
+      POSTGRES_DB: velodb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velo -d velodb"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: ve_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5
+    container_name: ve_neo4j
+    environment:
+      NEO4J_AUTH: neo4j/velo_secret
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 10s
+      retries: 12
+
+  nats:
+    image: nats:2-alpine
+    container_name: ve_nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "-m 8222 -js"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:1.24
+    container_name: ve_temporal
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=velo
+      - POSTGRES_PWD=velo_secret
+      - POSTGRES_SEEDS=postgres
+    ports:
+      - "7233:7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.26.0
+    container_name: ve_temporal_ui
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8080:8080"
+    depends_on:
+      - temporal
+
+  ve_orchestrator:
+    build:
+      context: ..
+      dockerfile: services/ve_orchestrator/Dockerfile
+    container_name: ve_orchestrator
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      NATS_URL: nats://nats:4222
+      TEMPORAL_ADDRESS: temporal:7233
+      WORKFLOW_BATCH_LIMIT: 25
+      DISPATCH_LIMIT: 1
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: velo_secret
+      CONTACT_COOLDOWN_DAYS: 3
+      CONTACT_WINDOW_DAYS: 30
+      MAX_CONTACTS_PER_WINDOW: 3
+      REDIS_URL: redis://redis:6379/0
+      FEATURE_CACHE_TTL_SECONDS: 300
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      vault:
+        condition: service_healthy
+
+  ve_connect:
+    build:
+      context: ..
+      dockerfile: services/ve_connect/Dockerfile
+    container_name: ve_connect
+    restart: unless-stopped
+    env_file:
+      - ../services/ve_connect/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      CLINIC_ID: clinic_alnoor_001
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    ports:
+      - "8003:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  ve_reach:
+    build:
+      context: ..
+      dockerfile: services/ve_reach/Dockerfile
+    container_name: ve_reach
+    restart: unless-stopped
+    env_file:
+      - ../services/ve_reach/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      NATS_URL: nats://nats:4222
+      CLINIC_ID: clinic_alnoor_001
+      CLINIC_NAME: Al Noor Clinic
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ve_ngrok
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command:
+      - "http"
+      - "ve_reach:8000"
+      - "--url=${NGROK_DOMAIN}"
+    depends_on:
+      ve_reach:
+        condition: service_healthy
+
+  ve_measure:
+    build:
+      context: ..
+      dockerfile: services/ve_measure/Dockerfile
+    container_name: ve_measure
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      NATS_URL: nats://nats:4222
+      ATTRIBUTION_WINDOW_DAYS: 30
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  ve_console:
+    build:
+      context: ..
+      dockerfile: services/ve_console/Dockerfile
+    container_name: ve_console
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      CLINIC_ID: clinic_alnoor_001
+      CLINIC_NAME: Al Noor Clinic
+      MESSAGE_COST: 0.05
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      KEYCLOAK_ISSUER: http://localhost:8081/realms/velo-engage
+      KEYCLOAK_ISSUER_INTERNAL: http://keycloak:8080/realms/velo-engage
+      KEYCLOAK_CLIENT_ID: ve-console
+      KEYCLOAK_CLIENT_SECRET: velo_console_dev_secret
+      SESSION_SECRET: velo_console_session_secret_dev
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    ports:
+      - "8002:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ve_measure:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: ve_mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri postgresql://velo:velo_secret@postgres/velodb
+      --serve-artifacts
+      --artifacts-destination /mlflow/artifacts
+      --default-artifact-root mlflow-artifacts:/
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: ve_keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_secret
+    # --import-realm loads velo-engage-realm.json on startup, but only if
+    # that realm doesn't already exist (data persists in the keycloak_data
+    # volume) — same idempotent-on-rerun pattern as the Neo4j/synthetic seed
+    # scripts, safe to leave in place across restarts.
+    command: start-dev --import-realm
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/velo-engage-realm.json:/opt/keycloak/data/import/velo-engage-realm.json:ro
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+
+  vault:
+    image: hashicorp/vault:1.16
+    container_name: ve_vault
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: velo_vault_root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: pushes real secret values into Vault's KV store on every
+  # startup (dev-mode Vault is in-memory, so this can't just run once ever
+  # — see seed_vault_secrets.sh). Every service falls back to its own env
+  # vars if this hasn't finished yet, so nothing blocks waiting for it.
+  vault-seed:
+    image: hashicorp/vault:1.16
+    container_name: ve_vault_seed
+    restart: "no"
+    env_file:
+      - ../services/ve_reach/.env
+      - ../services/ve_connect/.env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: velo_secret
+      KEYCLOAK_CLIENT_SECRET: velo_console_dev_secret
+      SESSION_SECRET: velo_console_session_secret_dev
+      KEYCLOAK_ADMIN_PASSWORD: admin_secret
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    volumes:
+      - ./vault/seed_vault_secrets.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh"]
+    depends_on:
+      vault:
+        condition: service_healthy
+
+  # Superseded by real Epic ingestion (ve_connect's Bulk Data $export, run
+  # automatically as the first step of the daily Temporal workflow — see
+  # pull_epic_data in ve_orchestrator/activities.py). Kept for reference but
+  # excluded from `docker compose up -d` by default via the "legacy" profile;
+  # run `docker compose --profile legacy up -d ehr-emulator` to bring it back.
+  ehr-emulator:
+    profiles: ["legacy"]
+    build:
+      context: ../scripts/ehr_emulator
+      dockerfile: Dockerfile
+    container_name: ve_ehr_emulator
+    ports:
+      - "8090:8090"
+    volumes:
+      - ehr_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/api/stats')"]
+      interval: 10s
+      retries: 10
+
+volumes:
+  pg_data:
+  neo4j_data:
+  ehr_data:
+  mlflow_artifacts:
+  keycloak_data:
+
+
+ 

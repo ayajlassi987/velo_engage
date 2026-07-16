@@ -1,0 +1,33 @@
+name: Unit tests
+
+# Only tests/unit runs in CI — no infra dependency (no Postgres/Redis/Neo4j/
+# NATS/Temporal/MLflow), fast, safe on every PR. tests/integration needs the
+# full docker-compose stack (infra/docker-compose.dev.yml) and stays a
+# local/pre-release gate — same manual-checklist pattern TESTING_GUIDE.md
+# and RELEASE_CHECKLIST.md already use, not automated here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit -v

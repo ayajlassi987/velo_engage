@@ -1,0 +1,28 @@
+version: 1
+family: G
+title: Benefit / financial lifecycle
+methods: [R, D]
+enabled: true
+rule:
+  id: benefit_lifecycle
+  consent_class: care_recall
+  priority: 0.80
+  conditions:
+    all:
+      - {field: coverage_period_end_date, operator: not_null}
+      - {field: coverage_period_end_date, operator: days_until_between, value: [0, 45]}
+  evidence:
+    coverage_period_end_date: {feature: coverage_period_end_date}
+    days_until_expiry: {days_until: coverage_period_end_date}
+delivery:
+  template:
+    name: velo_benefits_expiry_en_v1
+    language: en_US
+    parameters:
+      - {source: patient_name}
+      - {source: clinic_name}
+      - {source: evidence, key: days_until_expiry, default: 0}
+  session_text: "Hi {patient_name}, this is {clinic_name}. Your available care benefits may expire in {days_until_expiry} days. Reply BOOK to request an appointment, or STOP to opt out."
+activation:
+  required_features: [coverage_period_end_date]
+

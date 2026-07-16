@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, empty_state %}
+{% block content %}
+  {% if alerts %}
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Alerts</h2><span>{{ alerts|length }} signal{{ 's' if alerts|length != 1 }} needing attention</span></div></div>
+    <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:8px;">
+    {% for alert in alerts %}
+      <div>{{ badge('critical') }} <strong>{{ alert.label }}</strong> &mdash; {{ alert.detail }}</div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% for model in model_cards %}
+  <div class="model-hero">
+    <div>
+      <span class="eyebrow">{{ model.model_name }}</span>
+      <h2>{{ model.label }}</h2>
+      {% if model.headline_version %}
+      <p>{{ badge(model.headline_version.current_stage or 'unstaged') }} &middot; v{{ model.headline_version.version }} &middot; {{ model.headline_version.creation_timestamp|datetime }}</p>
+      {% else %}
+      <p>No registered versions yet.</p>
+      {% endif %}
+      <div class="model-actions">
+        <a class="button secondary" href="{{ mlflow_url }}/#/models/{{ model.model_name }}" target="_blank" rel="noreferrer"><i data-lucide="box"></i>Model registry</a>
+      </div>
+    </div>
+    <div class="model-score">
+      {% if model.metrics %}
+        {% set first_metric = model.metrics.items()|list|first %}
+        <span>{{ first_metric[0] }}</span><strong>{{ '%.3f'|format(first_metric[1]) }}</strong>
+        <small>{% for key, value in model.metrics.items() if not loop.first %}{{ key }} {{ '%.3f'|format(value) }}{{ ', ' if not loop.last }}{% endfor %}</small>
+      {% else %}
+        <span>metrics</span><strong>&ndash;</strong><small>No run metrics logged yet</small>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Prediction drift</h2>
+      {% if model.score_column %}<span>{{ model.score_column }} distribution, last {{ model.drift.window_days }}d vs. baseline (PSI)</span>{% else %}<span>Not applicable — see note below</span>{% endif %}
+    </div></div>
+    {% if not model.score_column %}
+      {{ empty_state('No continuous score persisted', model.label + ' predicts a label (see inbound_messages.detected_intent), not a continuous score — this PSI implementation needs a score distribution, so drift here would need a different, category-proportion-based metric, not built yet.') }}
+    {% elif model.drift and model.drift.psi is not none %}
+    <div class="model-score" style="margin:0 18px 18px;"><span>PSI</span><strong>{{ '%.3f'|format(model.drift.psi) }}</strong><small>{{ badge(model.drift.status) }} &middot; baseline n={{ model.drift.baseline_n }} &middot; current n={{ model.drift.current_n }}</small></div>
+    {% elif model.drift %}{{ empty_state('Not enough data yet', 'Need a larger scored population on each side of the window to compute PSI.') }}
+    {% else %}{{ empty_state('No scored campaigns yet', 'PSI drift appears once campaigns carry a ' + model.score_column + '.') }}{% endif %}
+  </section>
+
+  {% if model.quality_synthetic is not none or model.quality_real is not none %}
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Prediction quality</h2><span>Precision / recall / F1 / AUC against real logged outcomes</span></div></div>
+    <div style="padding:0 18px 18px;display:flex;gap:24px;flex-wrap:wrap;">
+      <div>
+        <strong>Synthetic cohort</strong> <small>(historical backtest, not live performance)</small><br>
+        {% if model.quality_synthetic and model.quality_synthetic.status == 'ok' %}
+          n={{ model.quality_synthetic.n }} &middot; P {{ '%.3f'|format(model.quality_synthetic.precision) }} &middot; R {{ '%.3f'|format(model.quality_synthetic.recall) }} &middot; F1 {{ '%.3f'|format(model.quality_synthetic.f1) }}{% if model.quality_synthetic.auc %} &middot; AUC {{ '%.3f'|format(model.quality_synthetic.auc) }}{% endif %}
+        {% else %}{{ empty_state('Insufficient data', 'Not enough outcomes yet to compute quality metrics.') }}{% endif %}
+      </div>
+      <div>
+        <strong>Real cohort</strong> <small>(live Epic patients)</small><br>
+        {% if model.quality_real and model.quality_real.status == 'ok' %}
+          n={{ model.quality_real.n }} &middot; P {{ '%.3f'|format(model.quality_real.precision) }} &middot; R {{ '%.3f'|format(model.quality_real.recall) }} &middot; F1 {{ '%.3f'|format(model.quality_real.f1) }}{% if model.quality_real.auc %} &middot; AUC {{ '%.3f'|format(model.quality_real.auc) }}{% endif %}
+        {% else %}{{ empty_state('Insufficient data', 'Real campaigns are still accumulating outcomes — expected until enough real patients have booked/attended.') }}{% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+  {% endfor %}
+
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Feature drift</h2><span>Population-level input drift (age, days_since_last_visit, visit_cadence_baseline), independent of any single model's score</span></div></div>
+    <div style="padding:0 18px 18px;display:flex;gap:24px;flex-wrap:wrap;">
+    {% for column, drift in feature_drift.items() %}
+      <div>
+        <strong>{{ column }}</strong><br>
+        {% if drift and drift.psi is not none %}
+          PSI {{ '%.3f'|format(drift.psi) }} {{ badge(drift.status) }} <small>n={{ drift.baseline_n }}/{{ drift.current_n }}</small>
+        {% else %}<small>Insufficient data</small>{% endif %}
+      </div>
+    {% endfor %}
+    </div>
+  </section>
+
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Registered versions</h2><span>Immutable model artifacts tracked in MLflow, across every model</span></div></div>
+    {% if versions %}<div class="table-frame"><table><thead><tr><th>Model</th><th>Version</th><th>Stage</th><th>Registry</th><th>Run</th><th>Created</th><th></th></tr></thead><tbody>
+    {% for row in versions %}<tr><td><strong>{{ row.name }}</strong></td><td><span class="version-tag">v{{ row.version }}</span></td><td>{{ badge(row.current_stage or 'unstaged') }}</td><td>{{ badge(row.status|lower) }}</td><td>{{ badge(row.run_status|lower) }}</td><td>{{ row.creation_timestamp|datetime }}</td><td><a class="icon-button small" href="{{ mlflow_url }}/#/models/{{ row.name }}/versions/{{ row.version }}" target="_blank" title="Open in MLflow"><i data-lucide="arrow-up-right"></i></a></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}{{ empty_state('No registered models','Run a training pipeline to create version 1.') }}{% endif %}
+  </section>
+{% endblock %}

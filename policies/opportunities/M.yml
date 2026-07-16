@@ -1,0 +1,24 @@
+version: 1
+family: M
+title: Household & life-stage graph
+methods: [D, AI]
+enabled: true
+rule:
+  id: household_lifestage_eligible
+  consent_class: household_outreach
+  priority: 0.40
+  conditions:
+    all:
+      - {field: household_lifestage_eligible_flag, operator: eq, value: true}
+  evidence:
+    household_lifestage_eligible_flag: {feature: household_lifestage_eligible_flag}
+delivery:
+  template:
+    name: velo_household_lifestage_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. A household or life-stage care option may be relevant to you. Reply BOOK for details, or STOP to opt out."
+activation:
+  source_owner: household graph service
+  required_features: [household_lifestage_eligible_flag]
+

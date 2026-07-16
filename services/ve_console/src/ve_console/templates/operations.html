@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge %}
+{% block content %}
+  {% if alerts %}
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Model alerts</h2><span>{{ alerts|length }} signal{{ 's' if alerts|length != 1 }} needing attention &mdash; see <a href="/models">ML models</a> for detail</span></div></div>
+    <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:8px;">
+    {% for alert in alerts %}
+      <div>{{ badge('critical') }} <strong>{{ alert.label }}</strong> &mdash; {{ alert.detail }}</div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  <section class="operations-summary"><span class="health-ring"><strong>{{ healthy }}</strong><small>of {{ services|length }}</small></span><div><h2>Platform connectivity</h2><p>Live checks from the console container to every core dependency.</p></div><span class="badge {{ 'badge-ready' if healthy == services|length else 'badge-warning' }}">{{ 'All systems operational' if healthy == services|length else 'Attention required' }}</span></section>
+  <section class="service-grid">
+  {% for service in services %}
+    <article class="service-card"><div class="service-head"><span class="service-icon"><i data-lucide="{{ ['database','radio-tower','workflow','chart-no-axes-combined','share-2','shield-check','key-round'][loop.index0] }}"></i></span><span class="service-state {{ 'healthy' if service.ok else 'offline' }}"><i></i>{{ 'Healthy' if service.ok else 'Unavailable' }}</span></div><h2>{{ service.name }}</h2><p>{{ service.role }}</p>{% if service.url %}<a href="{{ service.url }}" target="_blank" rel="noreferrer">Open service<i data-lucide="arrow-up-right"></i></a>{% else %}<span class="internal-label">Internal service</span>{% endif %}</article>
+  {% endfor %}
+  </section>
+  <section class="content-section quick-links"><div class="section-heading"><div><h2>Developer endpoints</h2><span>Useful links for local operations</span></div></div><div><a href="http://localhost:8080" target="_blank"><i data-lucide="workflow"></i><span><strong>Temporal UI</strong><small>Workflow history and schedules</small></span><i data-lucide="arrow-up-right"></i></a><a href="http://localhost:5000" target="_blank"><i data-lucide="brain-circuit"></i><span><strong>MLflow</strong><small>Experiments and model registry</small></span><i data-lucide="arrow-up-right"></i></a><a href="/api/docs"><i data-lucide="braces"></i><span><strong>Console API</strong><small>FastAPI endpoint reference</small></span><i data-lucide="arrow-up-right"></i></a></div></section>
+{% endblock %}

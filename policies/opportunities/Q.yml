@@ -1,0 +1,23 @@
+version: 1
+family: Q
+title: Outcome / quality follow-up
+methods: [R, D]
+enabled: true
+rule:
+  id: quality_followup_due
+  consent_class: quality_followup
+  priority: 0.82
+  conditions:
+    all:
+      - {field: quality_followup_due_flag, operator: eq, value: true}
+  evidence:
+    quality_followup_due_flag: {feature: quality_followup_due_flag}
+delivery:
+  template:
+    name: velo_quality_followup_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. We are following up on the outcome of your recent care. Reply BOOK to contact the care team, or STOP to opt out."
+activation:
+  source_owner: quality service
+  required_features: [quality_followup_due_flag]

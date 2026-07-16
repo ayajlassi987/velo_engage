@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, summary_cards, empty_state %}
+{% block content %}
+  {{ summary_cards(summary) }}
+  <section class="content-section">
+    <div class="section-toolbar whatsapp-toolbar">
+      <div class="tabs"><a href="/whatsapp?tab=outbound" class="{{ 'active' if tab != 'inbound' else '' }}">Outbound</a><a href="/whatsapp?tab=inbound" class="{{ 'active' if tab == 'inbound' else '' }}">Inbox <span>{{ inbound|length }}</span></a></div>
+      <form class="filters" method="get"><input type="hidden" name="tab" value="{{ tab }}"><label class="search-field"><i data-lucide="search"></i><input name="q" value="{{ q }}" placeholder="Search messages"></label><button class="button secondary" type="submit">Search</button></form>
+    </div>
+
+    {% if tab == 'inbound' %}
+      {% if inbound %}<div class="inbox-layout"><div class="conversation-list">
+      {% for row in inbound %}
+        <a href="{{ '/campaigns/' ~ row.campaign_id if row.campaign_id else '#' }}"><span class="message-avatar">{{ row.from_number[-2:] }}</span><span class="conversation-copy"><span><strong>{{ row.patient_id or row.from_number }}</strong><time>{{ row.received_at|datetime }}</time></span><p>{{ row.body or row.message_type|title ~ ' message' }}</p><small>{{ badge(row.detected_intent) }} {% if row.campaign_id %}Linked to {{ row.campaign_id[:10] }}{% else %}Unattributed{% endif %}</small></span><i data-lucide="chevron-right"></i></a>
+      {% endfor %}
+      </div><aside class="inbox-empty"><i data-lucide="messages-square"></i><strong>Patient conversations</strong><p>Select a linked reply to open its full campaign journey.</p></aside></div>{% else %}{{ empty_state('Inbox is clear','New patient replies will arrive through the Meta webhook.') }}{% endif %}
+    {% else %}
+      {% if outbound %}<div class="table-frame"><table><thead><tr><th>Campaign</th><th>Patient / recipient</th><th>Source</th><th>Family</th><th>Sent</th><th>Status</th><th>Delivered</th><th>Read</th><th>Reply</th></tr></thead><tbody>
+      {% for row in outbound %}<tr><td>{% if row.campaign_id %}<a class="record-link" href="/campaigns/{{ row.campaign_id }}">{{ row.campaign_id[:10] }}<i data-lucide="arrow-up-right"></i></a>{% elif row.wa_message_id %}<a class="record-link" href="{{ request.url_for('message_detail', wa_message_id=row.wa_message_id) }}">Manual test<i data-lucide="arrow-up-right"></i></a>{% else %}<span class="muted">Manual test</span>{% endif %}</td><td>{{ row.patient_id or row.recipient_e164 }}</td><td>{{ badge(row.source) }}</td><td>{% if row.family %}<span class="family family-{{ row.family|lower }}">{{ row.family }}</span>{% else %}-{% endif %}</td><td>{{ row.dispatched_at|datetime }}</td><td>{{ badge(row.status) }}</td><td>{{ badge('delivered') if row.delivered else '<span class="muted">Pending</span>'|safe }}</td><td>{{ badge('read') if row.read else '-' }}</td><td>{{ badge('replied') if row.replied else '-' }}</td></tr>{% endfor %}
+      </tbody></table></div>{% else %}{{ empty_state() }}{% endif %}
+    {% endif %}
+  </section>
+{% endblock %}

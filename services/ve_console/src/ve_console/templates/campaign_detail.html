@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, empty_state %}
+{% block content %}
+  <div class="detail-header">
+    <a href="/campaigns" class="back-link"><i data-lucide="arrow-left"></i>Campaigns</a>
+    <div class="detail-actions">{{ badge(campaign.treatment_arm) }}{{ badge('attended' if campaign.attended else 'booked' if campaign.booked else 'active') }}</div>
+  </div>
+
+  <section class="journey-rail" aria-label="Campaign journey">
+    {% set steps = [('Targeted',true),('Sent',campaign.dispatched_at),('Delivered',campaign.delivered),('Read',campaign.read),('Replied',campaign.replied),('Booking requested',campaign.booking_requested),('Booked',campaign.booked),('Attended',campaign.attended)] %}
+    {% for label, done in steps %}<div class="journey-step {{ 'done' if done else '' }}"><span><i data-lucide="{{ 'check' if done else 'circle' }}"></i></span><strong>{{ label }}</strong></div>{% endfor %}
+  </section>
+
+  <div class="detail-grid">
+    <section class="content-section detail-facts">
+      <div class="section-heading"><div><h2>Campaign context</h2><span>Why this patient entered the workflow</span></div></div>
+      <dl>
+        <div><dt>Patient</dt><dd>{{ campaign.patient_id }}</dd></div><div><dt>Family</dt><dd><span class="family family-{{ campaign.family|lower }}">{{ campaign.family }}</span></dd></div>
+        <div><dt>Rule</dt><dd>{{ campaign.rule_name or '-' }}</dd></div><div><dt>Priority</dt><dd>{{ '%.2f'|format(campaign.priority_score or 0) }}</dd></div>
+        <div><dt>Channel</dt><dd>{{ campaign.channel|title }}</dd></div><div><dt>Template</dt><dd class="mono">{{ campaign.template_id or '-' }}</dd></div>
+        <div><dt>Created</dt><dd>{{ campaign.created_at|datetime }}</dd></div><div><dt>Dispatched</dt><dd>{{ campaign.dispatched_at|datetime }}</dd></div>
+      </dl>
+      {% if campaign.rule_evidence %}<div class="evidence"><span>Rule evidence</span><pre>{{ campaign.rule_evidence | tojson(indent=2) }}</pre></div>{% endif %}
+      {% if explanation %}<div class="evidence">
+        <span>Why this no-show score ({{ '%.0f'|format(explanation.predicted_score * 100) }}%)</span>
+        <dl class="shap-list">
+          {% for c in explanation.contributions[:6] %}
+          <div class="shap-row">
+            <dt>{{ c.feature|replace('_',' ')|title }}<small>{{ c.patient_value }}</small></dt>
+            <dd class="{{ 'up' if c.shap_value > 0 else 'down' }}">{{ '%+.3f'|format(c.shap_value) }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </div>{% endif %}
+    </section>
+
+    <section class="content-section outcome-panel">
+      <div class="section-heading"><div><h2>Attributed outcome</h2><span>Measured impact from this journey</span></div></div>
+      <div class="outcome-value"><span>Recovered revenue</span><strong>{{ campaign.revenue|money }}</strong></div>
+      <div class="outcome-flags"><span class="{{ 'on' if campaign.delivered }}"><i data-lucide="check-check"></i>Delivered</span><span class="{{ 'on' if campaign.read }}"><i data-lucide="eye"></i>Read</span><span class="{{ 'on' if campaign.replied }}"><i data-lucide="reply"></i>Replied</span><span class="{{ 'on' if campaign.booked }}"><i data-lucide="calendar-check"></i>Booked</span><span class="{{ 'on' if campaign.attended }}"><i data-lucide="stethoscope"></i>Attended</span></div>
+    </section>
+  </div>
+
+  <div class="detail-grid timeline-grid">
+    <section class="content-section">
+      <div class="section-heading"><div><h2>Messages</h2><span>Provider and patient activity</span></div></div>
+      {% if messages or inbound %}<div class="timeline">
+        {% for row in messages %}<div><span class="timeline-icon sent"><i data-lucide="send"></i></span><span><strong>WhatsApp accepted</strong><small>{{ row.wa_message_id }}</small><time>{{ row.created_at|datetime }}</time></span></div>{% endfor %}
+        {% for row in inbound %}<div><span class="timeline-icon reply"><i data-lucide="message-circle-reply"></i></span><span><strong>Patient replied · {{ row.detected_intent|replace('_',' ')|title }}</strong><small>{{ row.body or row.message_type }}</small><time>{{ row.received_at|datetime }}</time></span></div>{% endfor %}
+      </div>{% else %}{{ empty_state('No message events','Message provider IDs and patient replies appear here.') }}{% endif %}
+    </section>
+    <section class="content-section">
+      <div class="section-heading"><div><h2>Bookings and revenue</h2><span>Attributed conversion records</span></div></div>
+      {% if bookings or revenues %}<div class="timeline">
+        {% for row in bookings %}<div><span class="timeline-icon booking"><i data-lucide="calendar-check"></i></span><span><strong>{{ row.status|title }} · {{ row.booking_id }}</strong><small>Appointment {{ row.appointment_date|datetime }}</small><time>Recorded {{ row.created_at|datetime }}</time></span></div>{% endfor %}
+        {% for row in revenues %}<div><span class="timeline-icon revenue"><i data-lucide="circle-dollar-sign"></i></span><span><strong>{{ row.amount|money(row.currency) }} · {{ 'Paid' if row.paid else 'Unpaid' }}</strong><small>Invoice {{ row.invoice_id }}</small><time>{{ row.occurred_at|datetime }}</time></span></div>{% endfor %}
+      </div>{% else %}{{ empty_state('No conversion yet','Attributed bookings and billing events appear here.') }}{% endif %}
+    </section>
+  </div>
+{% endblock %}

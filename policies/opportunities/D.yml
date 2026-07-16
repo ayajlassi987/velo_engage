@@ -1,0 +1,24 @@
+version: 1
+family: D
+title: Cross-specialty (gap + note-mining + lookalike)
+methods: [R, D, AI]
+enabled: true
+rule:
+  id: cross_specialty_gap
+  consent_class: care_coordination
+  priority: 0.75
+  conditions:
+    all:
+      - {field: cross_specialty_gap_flag, operator: eq, value: true}
+  evidence:
+    cross_specialty_gap_flag: {feature: cross_specialty_gap_flag}
+delivery:
+  template:
+    name: velo_cross_specialty_gap_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. We identified a possible cross-specialty care need for review. Reply BOOK to speak with our care team, or STOP to opt out."
+activation:
+  source_owner: care-gap service
+  required_features: [cross_specialty_gap_flag]
+

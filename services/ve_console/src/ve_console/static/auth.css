@@ -1,0 +1,90 @@
+/* Standalone auth pages (login/logged-out) — not part of the app-shell,
+   deliberately reuses the console's design tokens from styles.css. */
+
+.auth-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(1100px 520px at 12% -10%, #1d4d41 0%, transparent 60%),
+    radial-gradient(900px 480px at 110% 10%, #123d32 0%, transparent 55%),
+    var(--sidebar);
+  padding: 24px;
+}
+
+.auth-shell { width: 100%; max-width: 440px; }
+
+.auth-card {
+  background: var(--paper);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(6, 20, 15, .35);
+  padding: 32px 30px 26px;
+}
+
+.auth-brand {
+  color: var(--ink);
+  padding: 0;
+  margin-bottom: 22px;
+}
+.auth-brand strong { color: var(--ink); font-size: 16px; }
+.auth-brand small { color: var(--faint); }
+
+.auth-card h1 { margin: 0 0 6px; font-size: 21px; letter-spacing: -0.01em; }
+.auth-subtitle { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+.auth-cta {
+  width: 100%;
+  min-height: 44px;
+  font-size: 14px;
+  box-shadow: 0 8px 20px rgba(20, 125, 100, .25);
+}
+
+.auth-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #096148;
+  background: var(--green-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.auth-banner svg { width: 16px; flex: 0 0 auto; margin-top: 1px; }
+.auth-banner-error { color: #9d3c32; background: var(--coral-soft); }
+
+.auth-roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+.auth-roles-3 { grid-template-columns: 1fr 1fr 1fr; }
+.auth-role-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--canvas);
+}
+.auth-role-card svg { width: 16px; margin-top: 2px; color: var(--green); flex: 0 0 auto; }
+.auth-role-card strong { display: block; font-size: 12.5px; }
+.auth-role-card small { color: var(--faint); font-size: 11px; line-height: 1.4; }
+
+.auth-footnote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 22px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+}
+.auth-footnote svg { width: 12px; }
+
+@media (max-width: 480px) {
+  .auth-roles { grid-template-columns: 1fr; }
+}

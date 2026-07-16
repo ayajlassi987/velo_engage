@@ -1,0 +1,27 @@
+version: 1
+family: A
+title: Dormancy / personal-cadence anomaly
+methods: [R, D]
+enabled: true
+rule:
+  id: dormancy
+  consent_class: care_recall
+  priority: 0.70
+  conditions:
+    all:
+      - {field: days_since_last_visit, operator: not_null}
+      - {field: days_since_last_visit, operator: gt, value: 180}
+  evidence:
+    days_since_last_visit: {feature: days_since_last_visit}
+    threshold: {literal: 180}
+delivery:
+  template:
+    name: velo_dormancy_recall_en_v1
+    language: en_US
+    parameters:
+      - {source: patient_name}
+      - {source: clinic_name}
+  session_text: "Hi {patient_name}, this is {clinic_name}. It has been a while since your last visit. Reply BOOK to request an appointment, or STOP to opt out."
+activation:
+  required_features: [days_since_last_visit]
+

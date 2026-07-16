@@ -1,0 +1,24 @@
+version: 1
+family: L
+title: Treatment & product lifecycle (re-treatment decay, refills)
+methods: [D, AI]
+enabled: true
+rule:
+  id: treatment_lifecycle_due
+  consent_class: care_recall
+  priority: 0.72
+  conditions:
+    all:
+      - {field: treatment_lifecycle_due_flag, operator: eq, value: true}
+  evidence:
+    treatment_lifecycle_due_flag: {feature: treatment_lifecycle_due_flag}
+delivery:
+  template:
+    name: velo_treatment_lifecycle_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. Your treatment or product lifecycle may be due for review. Reply BOOK for assistance, or STOP to opt out."
+activation:
+  source_owner: treatment lifecycle service
+  required_features: [treatment_lifecycle_due_flag]
+

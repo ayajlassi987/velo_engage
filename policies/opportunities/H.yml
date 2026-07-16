@@ -1,0 +1,24 @@
+version: 1
+family: H
+title: Preference-based
+methods: [R]
+enabled: true
+rule:
+  id: preference_match
+  consent_class: preference_outreach
+  priority: 0.55
+  conditions:
+    all:
+      - {field: preference_match_flag, operator: eq, value: true}
+  evidence:
+    preference_match_flag: {feature: preference_match_flag}
+delivery:
+  template:
+    name: velo_preference_match_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. A care option matching preferences you shared is available. Reply BOOK for details, or STOP to opt out."
+activation:
+  source_owner: preference service
+  required_features: [preference_match_flag]
+

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, empty_state %}
+{% block content %}
+  <section class="metric-grid overview-metrics">
+    <article class="metric-card accent-green"><span class="metric-label">Recovered revenue</span><strong>{{ metrics.revenue|money }}</strong><small>Attributed paid invoices</small></article>
+    <article class="metric-card accent-blue"><span class="metric-label">Attributed bookings</span><strong>{{ '{:,}'.format(metrics.bookings) }}</strong><small>{{ metrics.booking_rate|percent }} of campaigns</small></article>
+    <article class="metric-card accent-coral"><span class="metric-label">Attended visits</span><strong>{{ '{:,}'.format(metrics.attended) }}</strong><small>Completed appointments</small></article>
+    <article class="metric-card accent-amber"><span class="metric-label">Return on outreach</span><strong>{{ metrics.roi|percent }}</strong><small>{{ metrics.spend|money }} estimated spend</small></article>
+  </section>
+
+  <div class="dashboard-grid">
+    <section class="content-section funnel-panel">
+      <div class="section-heading"><div><h2>Engagement funnel</h2><span>Treated campaign progression</span></div><a href="/campaigns">View campaigns<i data-lucide="arrow-right"></i></a></div>
+      <div class="funnel">
+        {% for key, value in funnel.items() %}
+        <div class="funnel-row"><span>{{ key|title }}</span><div><i style="width:{{ (value / funnel_max * 100) if funnel_max else 0 }}%"></i></div><strong>{{ '{:,}'.format(value) }}</strong></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-section snapshot-panel">
+      <div class="section-heading"><div><h2>Pipeline snapshot</h2><span>Current clinic inventory</span></div></div>
+      <div class="snapshot-list">
+        <a href="/opportunities"><span class="snapshot-icon green"><i data-lucide="scan-search"></i></span><span><strong>{{ '{:,}'.format(metrics.opportunities) }}</strong><small>Opportunities identified</small></span><i data-lucide="chevron-right"></i></a>
+        <a href="/campaigns"><span class="snapshot-icon blue"><i data-lucide="send"></i></span><span><strong>{{ '{:,}'.format(metrics.dispatched) }}</strong><small>Campaigns dispatched</small></span><i data-lucide="chevron-right"></i></a>
+        <a href="/whatsapp?tab=inbound"><span class="snapshot-icon green"><i data-lucide="message-circle-reply"></i></span><span><strong>{{ '{:,}'.format(metrics.booking_requests) }}</strong><small>Booking requests received</small></span><i data-lucide="chevron-right"></i></a>
+        <a href="/bookings"><span class="snapshot-icon coral"><i data-lucide="calendar-check"></i></span><span><strong>{{ '{:,}'.format(metrics.bookings) }}</strong><small>Bookings linked</small></span><i data-lucide="chevron-right"></i></a>
+      </div>
+    </section>
+  </div>
+
+  <div class="dashboard-grid lower-grid">
+    <section class="content-section">
+      <div class="section-heading"><div><h2>Recent campaigns</h2><span>Latest journeys entering the pipeline</span></div><a href="/campaigns">See all<i data-lucide="arrow-right"></i></a></div>
+      <div class="compact-list">
+      {% for row in recent_campaigns %}
+        <a href="/campaigns/{{ row.campaign_id }}"><span class="family family-{{ row.family|lower }}">{{ row.family }}</span><span class="compact-main"><strong>{{ row.patient_id }}</strong><small>{{ row.created_at|datetime }}</small></span>{{ badge(row.treatment_arm) }}{{ badge(row.status) }}<i data-lucide="chevron-right"></i></a>
+      {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="section-heading"><div><h2>Patient replies</h2><span>Latest inbound WhatsApp activity</span></div><a href="/whatsapp?tab=inbound">Open inbox<i data-lucide="arrow-right"></i></a></div>
+      {% if recent_inbound %}<div class="message-list">
+      {% for row in recent_inbound %}
+        <a href="{{ '/campaigns/' ~ row.campaign_id if row.campaign_id else '/whatsapp?tab=inbound' }}"><span class="message-avatar">{{ row.from_number[-2:] }}</span><span><strong>{{ row.from_number }}</strong><p>{{ row.body or 'Non-text message' }}</p><small>{{ row.received_at|datetime }}</small></span>{{ badge(row.detected_intent) }}</a>
+      {% endfor %}
+      </div>{% else %}{{ empty_state('No inbound replies yet','Patient replies will appear here after webhook delivery.') }}{% endif %}
+    </section>
+  </div>
+{% endblock %}

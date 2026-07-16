@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge %}
+{% block content %}
+  <section class="metric-grid">
+    <article class="metric-card accent-green"><span class="metric-label">Treated booking rate</span><strong>{{ stats.treated_rate|percent }}</strong><small>Patients receiving outreach</small></article>
+    <article class="metric-card accent-amber"><span class="metric-label">Holdout booking rate</span><strong>{{ stats.holdout_rate|percent }}</strong><small>Natural conversion baseline</small></article>
+    <article class="metric-card accent-blue"><span class="metric-label">Absolute lift</span><strong>{{ '%.1f'|format(stats.absolute_lift) }} pp</strong><small>Treated minus holdout</small></article>
+    <article class="metric-card {{ 'accent-green' if stats.holdout_dispatches == 0 else 'accent-coral' }}"><span class="metric-label">Holdout safety</span><strong>{{ stats.holdout_dispatches }}</strong><small>{{ 'No accidental sends' if stats.holdout_dispatches == 0 else 'Release blocked' }}</small></article>
+  </section>
+
+  <div class="experiment-grid">
+  {% for row in rows %}
+    <section class="content-section experiment-arm {{ row.treatment_arm }}">
+      <div class="arm-heading"><div><span class="arm-dot"></span><h2>{{ row.treatment_arm|title }}</h2></div>{{ badge(row.treatment_arm) }}</div>
+      <strong class="rate-number">{{ row.booking_rate|percent }}</strong><span class="rate-caption">booking conversion</span>
+      <div class="conversion-bar"><span style="width:{{ [row.booking_rate,100]|min }}%"></span></div>
+      <dl><div><dt>Campaigns</dt><dd>{{ '{:,}'.format(row.campaigns) }}</dd></div><div><dt>Booked</dt><dd>{{ '{:,}'.format(row.booked) }}</dd></div><div><dt>Attended</dt><dd>{{ '{:,}'.format(row.attended) }}</dd></div><div><dt>Revenue</dt><dd>{{ row.revenue|money }}</dd></div></dl>
+    </section>
+  {% endfor %}
+  </div>
+
+  <section class="content-section interpretation">
+    <span class="interpretation-icon"><i data-lucide="flask-conical"></i></span>
+    <div><h2>Experiment interpretation</h2><p>The treated arm is converting <strong>{{ stats.absolute_lift|round(1) }} percentage points</strong> above the holdout baseline, a relative lift of <strong>{{ stats.relative_lift|percent }}</strong>. Holdout integrity is {{ 'intact' if stats.holdout_dispatches == 0 else 'compromised' }}.</p></div>
+  </section>
+{% endblock %}

@@ -1,0 +1,29 @@
+version: 1
+family: C
+title: Open / incomplete treatment plans
+methods: [R, D]
+enabled: true
+rule:
+  id: open_treatment_plan
+  consent_class: care_recall
+  priority: 0.90
+  conditions:
+    all:
+      - {field: open_treatment_plan_flag, operator: eq, value: true}
+      - any:
+          - {field: days_since_last_visit, operator: is_null}
+          - {field: days_since_last_visit, operator: gt, value: 30}
+  evidence:
+    open_treatment_plan_flag: {feature: open_treatment_plan_flag}
+    days_since_last_visit: {feature: days_since_last_visit}
+delivery:
+  template:
+    name: velo_treatment_followup_en_v1
+    language: en_US
+    parameters:
+      - {source: patient_name}
+      - {source: clinic_name}
+  session_text: "Hi {patient_name}, this is {clinic_name}. We are following up about your open treatment plan. Reply BOOK to continue your care, or STOP to opt out."
+activation:
+  required_features: [open_treatment_plan_flag, days_since_last_visit]
+

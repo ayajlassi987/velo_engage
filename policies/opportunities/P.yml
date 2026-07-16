@@ -1,0 +1,24 @@
+version: 1
+family: P
+title: Operational yield (slot fill, price-elasticity)
+methods: [D, AI]
+enabled: true
+rule:
+  id: slot_fill_eligible
+  consent_class: operational_offer
+  priority: 0.35
+  conditions:
+    all:
+      - {field: slot_fill_eligible_flag, operator: eq, value: true}
+  evidence:
+    slot_fill_eligible_flag: {feature: slot_fill_eligible_flag}
+delivery:
+  template:
+    name: velo_slot_fill_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. An appointment slot matching your eligibility is available. Reply BOOK for details, or STOP to opt out."
+activation:
+  source_owner: scheduling service
+  required_features: [slot_fill_eligible_flag]
+

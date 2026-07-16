@@ -1,0 +1,171 @@
+text,intent,language,source
+show my appointments,VIEW_APPOINTMENTS,en,seed_manual
+i want to see my appointments,VIEW_APPOINTMENTS,en,seed_manual
+when is my next appointment,VIEW_APPOINTMENTS,en,seed_manual
+list my bookings please,VIEW_APPOINTMENTS,en,seed_manual
+do i have any appointment today,VIEW_APPOINTMENTS,en,seed_manual
+send me my schedule,VIEW_APPOINTMENTS,en,seed_manual
+my appointments pls,VIEW_APPOINTMENTS,en,seed_manual
+appointment details please,VIEW_APPOINTMENTS,en,seed_manual
+what time is my appointment,VIEW_APPOINTMENTS,en,seed_manual
+can u check my booking,VIEW_APPOINTMENTS,en,seed_manual
+متى موعدي,VIEW_APPOINTMENTS,ar_msa,seed_manual
+أريد معرفة مواعيدي,VIEW_APPOINTMENTS,ar_msa,seed_manual
+هل لدي موعد اليوم,VIEW_APPOINTMENTS,ar_msa,seed_manual
+اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,seed_manual
+تفاصيل موعدي من فضلك,VIEW_APPOINTMENTS,ar_msa,seed_manual
+ابي اشوف مواعيدي,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+وش موعدي,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+عندي موعد اليوم؟,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+وريني مواعيدي,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+متى حجزي؟,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+i had pain in my teeth please i want to get an appointment asap,BOOK_APPOINTMENT,en,seed_manual
+i need a dentist appointment urgently,BOOK_APPOINTMENT,en,seed_manual
+book me for dental cleaning,BOOK_APPOINTMENT,en,seed_manual
+i want new appointment tomorrow,BOOK_APPOINTMENT,en,seed_manual
+can i get a slot today,BOOK_APPOINTMENT,en,seed_manual
+any free slots for tooth pain,BOOK_APPOINTMENT,en,seed_manual
+need appointment asap pls,BOOK_APPOINTMENT,en,seed_manual
+book consultation with doctor,BOOK_APPOINTMENT,en,seed_manual
+my tooth hurts need doctor,BOOK_APPOINTMENT,en,seed_manual
+available dentist today?,BOOK_APPOINTMENT,en,seed_manual
+أحتاج موعد أسنان اليوم,BOOK_APPOINTMENT,ar_msa,seed_manual
+لدي ألم في السن وأريد موعدا,BOOK_APPOINTMENT,ar_msa,seed_manual
+أريد حجز موعد قريب,BOOK_APPOINTMENT,ar_msa,seed_manual
+هل يوجد موعد متاح غدا؟,BOOK_APPOINTMENT,ar_msa,seed_manual
+أحتاج طبيب أسنان عاجلا,BOOK_APPOINTMENT,ar_msa,seed_manual
+ابي موعد ضرسي يعورني,BOOK_APPOINTMENT,ar_gulf,seed_manual
+عندي الم في الاسنان ابغى موعد,BOOK_APPOINTMENT,ar_gulf,seed_manual
+احجز لي موعد اليوم,BOOK_APPOINTMENT,ar_gulf,seed_manual
+فيه موعد قريب؟,BOOK_APPOINTMENT,ar_gulf,seed_manual
+ابغى دكتور اسنان ضروري,BOOK_APPOINTMENT,ar_gulf,seed_manual
+cancel my appointment,CANCEL_APPOINTMENT,en,seed_manual
+i want to cancel,CANCEL_APPOINTMENT,en,seed_manual
+please cancel tomorrow appointment,CANCEL_APPOINTMENT,en,seed_manual
+i cannot come cancel it,CANCEL_APPOINTMENT,en,seed_manual
+remove my booking,CANCEL_APPOINTMENT,en,seed_manual
+not coming today cancel,CANCEL_APPOINTMENT,en,seed_manual
+cant make it please cancel,CANCEL_APPOINTMENT,en,seed_manual
+cancel appt pls,CANCEL_APPOINTMENT,en,seed_manual
+i need to cancel my visit,CANCEL_APPOINTMENT,en,seed_manual
+delete my appointment,CANCEL_APPOINTMENT,en,seed_manual
+أريد إلغاء الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+لا أستطيع الحضور ألغ الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+الرجاء إلغاء الحجز,CANCEL_APPOINTMENT,ar_msa,seed_manual
+لن أحضر الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+ألغ موعدي من فضلك,CANCEL_APPOINTMENT,ar_msa,seed_manual
+ابي الغي موعدي,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+ما اقدر اجي الغي الموعد,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+الغ حجز الاسنان,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+ما بقدر احضر اليوم,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+reschedule my appointment,RESCHEDULE_APPOINTMENT,en,seed_manual
+i want to change the time,RESCHEDULE_APPOINTMENT,en,seed_manual
+move my appointment to next week,RESCHEDULE_APPOINTMENT,en,seed_manual
+can we make it later,RESCHEDULE_APPOINTMENT,en,seed_manual
+another time please,RESCHEDULE_APPOINTMENT,en,seed_manual
+i need different day,RESCHEDULE_APPOINTMENT,en,seed_manual
+change appt time pls,RESCHEDULE_APPOINTMENT,en,seed_manual
+postpone my appointment,RESCHEDULE_APPOINTMENT,en,seed_manual
+can i come tomorrow instead,RESCHEDULE_APPOINTMENT,en,seed_manual
+switch my slot,RESCHEDULE_APPOINTMENT,en,seed_manual
+أريد تغيير الموعد,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+هل يمكن تأجيل الموعد؟,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+أحتاج وقتا آخر,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+انقل الموعد إلى الأسبوع القادم,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+أريد موعدا في يوم مختلف,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+ابي اغير الموعد,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+ممكن وقت ثاني,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+أجل الموعد لو سمحت,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+انقل الموعد ليوم ثاني,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+خل الموعد بكرة,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+yes i confirm,CONFIRM_APPOINTMENT,en,seed_manual
+confirm my appointment,CONFIRM_APPOINTMENT,en,seed_manual
+i will come,CONFIRM_APPOINTMENT,en,seed_manual
+ok confirmed,CONFIRM_APPOINTMENT,en,seed_manual
+yes see you,CONFIRM_APPOINTMENT,en,seed_manual
+i am coming,CONFIRM_APPOINTMENT,en,seed_manual
+sure keep it,CONFIRM_APPOINTMENT,en,seed_manual
+sounds good,CONFIRM_APPOINTMENT,en,seed_manual
+confirmed thanks,CONFIRM_APPOINTMENT,en,seed_manual
+yes keep the booking,CONFIRM_APPOINTMENT,en,seed_manual
+نعم أؤكد الموعد,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+سأحضر إن شاء الله,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+تم تأكيد الموعد,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+أوافق على الموعد,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+نعم سأكون هناك,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+أكيد جاي,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+تمام بحضر,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+ان شاء الله بجي,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+اي اكد الموعد,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+خلاص الموعد مناسب,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+where is your clinic,CLINIC_FAQ,en,seed_manual
+clinic location please,CLINIC_FAQ,en,seed_manual
+what are your opening hours,CLINIC_FAQ,en,seed_manual
+how much dental cleaning cost,CLINIC_FAQ,en,seed_manual
+do you accept insurance,CLINIC_FAQ,en,seed_manual
+what services do you offer,CLINIC_FAQ,en,seed_manual
+is parking available,CLINIC_FAQ,en,seed_manual
+clinic phone number,CLINIC_FAQ,en,seed_manual
+i want to know about your clinic,CLINIC_FAQ,en,seed_manual
+do you do implants,CLINIC_FAQ,en,seed_manual
+أين موقع العيادة؟,CLINIC_FAQ,ar_msa,seed_manual
+ما أوقات العمل؟,CLINIC_FAQ,ar_msa,seed_manual
+كم سعر تنظيف الأسنان؟,CLINIC_FAQ,ar_msa,seed_manual
+هل تقبلون التأمين؟,CLINIC_FAQ,ar_msa,seed_manual
+ما الخدمات المتوفرة؟,CLINIC_FAQ,ar_msa,seed_manual
+وين موقع العيادة,CLINIC_FAQ,ar_gulf,seed_manual
+كم سعر التنظيف,CLINIC_FAQ,ar_gulf,seed_manual
+تقبلون التأمين؟,CLINIC_FAQ,ar_gulf,seed_manual
+متى تفتحون,CLINIC_FAQ,ar_gulf,seed_manual
+عندكم مواقف؟,CLINIC_FAQ,ar_gulf,seed_manual
+hello,GREETING,en,seed_manual
+hi,GREETING,en,seed_manual
+hey there,GREETING,en,seed_manual
+good morning,GREETING,en,seed_manual
+good evening,GREETING,en,seed_manual
+salam,GREETING,en,seed_manual
+hello doctor,GREETING,en,seed_manual
+hi clinic,GREETING,en,seed_manual
+مرحبا,GREETING,ar_msa,seed_manual
+السلام عليكم,GREETING,ar_msa,seed_manual
+أهلا,GREETING,ar_msa,seed_manual
+صباح الخير,GREETING,ar_msa,seed_manual
+مساء الخير,GREETING,ar_msa,seed_manual
+هلا,GREETING,ar_gulf,seed_manual
+اهلين,GREETING,ar_gulf,seed_manual
+يا هلا,GREETING,ar_gulf,seed_manual
+السلام عليكم شلونكم,GREETING,ar_gulf,seed_manual
+مرحبا عندكم,GREETING,ar_gulf,seed_manual
+thanks,THANKS,en,seed_manual
+thank you,THANKS,en,seed_manual
+thx,THANKS,en,seed_manual
+appreciate it,THANKS,en,seed_manual
+ok thanks,THANKS,en,seed_manual
+thank u doctor,THANKS,en,seed_manual
+many thanks,THANKS,en,seed_manual
+شكرا,THANKS,ar_msa,seed_manual
+شكرا جزيلا,THANKS,ar_msa,seed_manual
+أشكركم,THANKS,ar_msa,seed_manual
+جزاكم الله خيرا,THANKS,ar_msa,seed_manual
+مشكور,THANKS,ar_gulf,seed_manual
+يعطيكم العافية,THANKS,ar_gulf,seed_manual
+تسلم,THANKS,ar_gulf,seed_manual
+تمام شكرا,THANKS,ar_gulf,seed_manual
+ما قصرتوا,THANKS,ar_gulf,seed_manual
+what is the weather today,UNKNOWN,en,seed_manual
+can you call my friend,UNKNOWN,en,seed_manual
+i want coffee,UNKNOWN,en,seed_manual
+send me the invoice from another clinic,UNKNOWN,en,seed_manual
+random message xyz,UNKNOWN,en,seed_manual
+do you sell phones,UNKNOWN,en,seed_manual
+where is my car,UNKNOWN,en,seed_manual
+play music please,UNKNOWN,en,seed_manual
+ما ادري,UNKNOWN,ar_msa,seed_manual
+أرسل لي أغنية,UNKNOWN,ar_msa,seed_manual
+أريد مطعما قريبا,UNKNOWN,ar_msa,seed_manual
+هذا اختبار فقط,UNKNOWN,ar_msa,seed_manual
+وين السيارة,UNKNOWN,ar_gulf,seed_manual
+ابي مطعم قريب,UNKNOWN,ar_gulf,seed_manual
+شغل اغنية,UNKNOWN,ar_gulf,seed_manual
+مدري وش اقول,UNKNOWN,ar_gulf,seed_manual

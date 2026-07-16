@@ -1,0 +1,185 @@
+WARNING:temporalio.activity:Completing activity as failed
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 934, in value_to_type
+    ret_list.append(value_to_type(arg_type, item, custom_converters))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 726, in value_to_type
+    raise TypeError(f"Expected value to be str, was {type(value)}")
+TypeError: Expected value to be str, was <class 'dict'>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 606, in _execute_activity
+    else await data_converter.decode(start.input, type_hints=arg_types)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_data_converter.py", line 147, in decode
+    return self.payload_converter.from_payloads(payloads, type_hints)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 301, in from_payloads
+    values.append(converter.from_payload(payload, type_hint))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 655, in from_payload
+    obj = value_to_type(type_hint, obj, self._custom_type_converters)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 936, in value_to_type
+    raise TypeError(f"Failed converting {hint} index {i}") from err
+TypeError: Failed converting list[str] index 0
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 359, in _handle_start_activity_task
+    result = await self._execute_activity(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 609, in _execute_activity
+    raise temporalio.exceptions.ApplicationError(
+temporalio.exceptions.ApplicationError: Failed decoding arguments
+WARNING:temporalio.activity:Completing activity as failed
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 934, in value_to_type
+    ret_list.append(value_to_type(arg_type, item, custom_converters))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 726, in value_to_type
+    raise TypeError(f"Expected value to be str, was {type(value)}")
+TypeError: Expected value to be str, was <class 'dict'>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 606, in _execute_activity
+    else await data_converter.decode(start.input, type_hints=arg_types)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_data_converter.py", line 147, in decode
+    return self.payload_converter.from_payloads(payloads, type_hints)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 301, in from_payloads
+    values.append(converter.from_payload(payload, type_hint))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 655, in from_payload
+    obj = value_to_type(type_hint, obj, self._custom_type_converters)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 936, in value_to_type
+    raise TypeError(f"Failed converting {hint} index {i}") from err
+TypeError: Failed converting list[str] index 0
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 359, in _handle_start_activity_task
+    result = await self._execute_activity(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 609, in _execute_activity
+    raise temporalio.exceptions.ApplicationError(
+temporalio.exceptions.ApplicationError: Failed decoding arguments
+WARNING:temporalio.activity:Completing activity as failed
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 934, in value_to_type
+    ret_list.append(value_to_type(arg_type, item, custom_converters))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 726, in value_to_type
+    raise TypeError(f"Expected value to be str, was {type(value)}")
+TypeError: Expected value to be str, was <class 'dict'>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 606, in _execute_activity
+    else await data_converter.decode(start.input, type_hints=arg_types)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_data_converter.py", line 147, in decode
+    return self.payload_converter.from_payloads(payloads, type_hints)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 301, in from_payloads
+    values.append(converter.from_payload(payload, type_hint))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 655, in from_payload
+    obj = value_to_type(type_hint, obj, self._custom_type_converters)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 936, in value_to_type
+    raise TypeError(f"Failed converting {hint} index {i}") from err
+TypeError: Failed converting list[str] index 0
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 359, in _handle_start_activity_task
+    result = await self._execute_activity(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 609, in _execute_activity
+    raise temporalio.exceptions.ApplicationError(
+temporalio.exceptions.ApplicationError: Failed decoding arguments
+WARNING:temporalio.activity:Completing activity as failed
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 934, in value_to_type
+    ret_list.append(value_to_type(arg_type, item, custom_converters))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 726, in value_to_type
+    raise TypeError(f"Expected value to be str, was {type(value)}")
+TypeError: Expected value to be str, was <class 'dict'>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 606, in _execute_activity
+    else await data_converter.decode(start.input, type_hints=arg_types)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_data_converter.py", line 147, in decode
+    return self.payload_converter.from_payloads(payloads, type_hints)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 301, in from_payloads
+    values.append(converter.from_payload(payload, type_hint))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 655, in from_payload
+    obj = value_to_type(type_hint, obj, self._custom_type_converters)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 936, in value_to_type
+    raise TypeError(f"Failed converting {hint} index {i}") from err
+TypeError: Failed converting list[str] index 0
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 359, in _handle_start_activity_task
+    result = await self._execute_activity(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 609, in _execute_activity
+    raise temporalio.exceptions.ApplicationError(
+temporalio.exceptions.ApplicationError: Failed decoding arguments
+WARNING:temporalio.activity:Completing activity as failed
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 934, in value_to_type
+    ret_list.append(value_to_type(arg_type, item, custom_converters))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 726, in value_to_type
+    raise TypeError(f"Expected value to be str, was {type(value)}")
+TypeError: Expected value to be str, was <class 'dict'>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 606, in _execute_activity
+    else await data_converter.decode(start.input, type_hints=arg_types)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_data_converter.py", line 147, in decode
+    return self.payload_converter.from_payloads(payloads, type_hints)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 301, in from_payloads
+    values.append(converter.from_payload(payload, type_hint))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 655, in from_payload
+    obj = value_to_type(type_hint, obj, self._custom_type_converters)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/converter/_payload_converter.py", line 936, in value_to_type
+    raise TypeError(f"Failed converting {hint} index {i}") from err
+TypeError: Failed converting list[str] index 0
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 359, in _handle_start_activity_task
+    result = await self._execute_activity(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aya/velo-engage/.venv/lib/python3.11/site-packages/temporalio/worker/_activity.py", line 609, in _execute_activity
+    raise temporalio.exceptions.ApplicationError(
+temporalio.exceptions.ApplicationError: Failed decoding arguments

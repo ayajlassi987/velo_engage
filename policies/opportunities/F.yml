@@ -1,0 +1,24 @@
+version: 1
+family: F
+title: Behavioural / engagement
+methods: [D, AI]
+enabled: true
+rule:
+  id: engagement_drop
+  consent_class: engagement
+  priority: 0.50
+  conditions:
+    all:
+      - {field: engagement_drop_flag, operator: eq, value: true}
+  evidence:
+    engagement_drop_flag: {feature: engagement_drop_flag}
+delivery:
+  template:
+    name: velo_engagement_followup_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. We would like to help you continue your care journey. Reply BOOK for assistance, or STOP to opt out."
+activation:
+  source_owner: engagement service
+  required_features: [engagement_drop_flag]
+

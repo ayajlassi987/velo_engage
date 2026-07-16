@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123d32">
+  <title>{{ title }} | Velo Engage</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/overview" aria-label="Velo Engage overview">
+        <span class="brand-mark">VE</span>
+        <span><strong>Velo Engage</strong><small>Clinic growth console</small></span>
+      </a>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <span class="nav-label">Workspace</span>
+        <a href="/overview" class="{{ 'active' if active == 'overview' else '' }}"><i data-lucide="layout-dashboard"></i><span>Overview</span></a>
+        <a href="/opportunities" class="{{ 'active' if active == 'opportunities' else '' }}"><i data-lucide="scan-search"></i><span>Opportunities</span></a>
+        <a href="/campaigns" class="{{ 'active' if active == 'campaigns' else '' }}"><i data-lucide="send"></i><span>Campaigns</span></a>
+        <a href="/whatsapp" class="{{ 'active' if active == 'whatsapp' else '' }}"><i data-lucide="message-circle"></i><span>WhatsApp</span></a>
+
+        <span class="nav-label">Measurement</span>
+        <a href="/bookings" class="{{ 'active' if active == 'bookings' else '' }}"><i data-lucide="calendar-check"></i><span>Bookings</span></a>
+        {% if user and (('owner' in user.roles) or ('admin' in user.roles)) %}
+        <a href="/revenue" class="{{ 'active' if active == 'revenue' else '' }}"><i data-lucide="circle-dollar-sign"></i><span>Revenue</span></a>
+        <a href="/holdout" class="{{ 'active' if active == 'holdout' else '' }}"><i data-lucide="split"></i><span>Holdout</span></a>
+        {% endif %}
+
+        {% if user and 'admin' in user.roles %}
+        <span class="nav-label">Platform</span>
+        <a href="/models" class="{{ 'active' if active == 'models' else '' }}"><i data-lucide="brain-circuit"></i><span>Models</span></a>
+        <a href="/operations" class="{{ 'active' if active == 'operations' else '' }}"><i data-lucide="activity"></i><span>Operations</span></a>
+        {% endif %}
+      </nav>
+
+      <div class="clinic-switcher">
+        <span class="clinic-avatar">AN</span>
+        <span><strong>{{ clinic_name }}</strong><small>{{ clinic_id }}</small></span>
+        <i data-lucide="chevrons-up-down"></i>
+      </div>
+      {% if user %}
+      <div class="clinic-switcher" style="margin-top: 8px;">
+        <span class="clinic-avatar">{{ user.name[:2]|upper }}</span>
+        <span><strong>{{ user.name }}</strong><small>{{ user.roles|join(", ")|title }}</small></span>
+        <a class="icon-button" href="/logout" title="Log out" aria-label="Log out"><i data-lucide="log-out"></i></a>
+      </div>
+      {% endif %}
+    </aside>
+
+    <div class="sidebar-scrim" id="sidebar-scrim"></div>
+
+    <section class="workspace">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="menu-button" type="button" aria-label="Open navigation"><i data-lucide="menu"></i></button>
+        <div class="breadcrumbs"><span>Velo Engage</span><i data-lucide="chevron-right"></i><strong>{{ title }}</strong></div>
+        <div class="topbar-actions">
+          <span class="live-state" title="Data refreshes every 15 seconds"><span></span><b>Live</b></span>
+          {% if user and 'admin' in user.roles %}
+          <a class="icon-button" href="/operations" title="System status" aria-label="System status"><i data-lucide="heart-pulse"></i></a>
+          {% endif %}
+          <span class="user-avatar" title="{{ user.name if user else '' }}">{{ user.name[:2]|upper if user else '?' }}</span>
+        </div>
+      </header>
+
+      <main>
+        <header class="page-heading">
+          <div><h1>{{ title }}</h1><p>{{ subtitle }}</p></div>
+          <div class="page-time"><i data-lucide="refresh-cw"></i> Updated {{ now|datetime }} UTC</div>
+        </header>
+        {% block content %}{% endblock %}
+      </main>
+    </section>
+  </div>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="{{ url_for('static', path='/app.js') }}"></script>
+</body>
+</html>

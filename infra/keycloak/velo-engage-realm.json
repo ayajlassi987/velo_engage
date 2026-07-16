@@ -1,0 +1,94 @@
+{
+  "realm": "velo-engage",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "displayName": "Velo Engage",
+  "displayNameHtml": "<b>Velo Engage</b>",
+  "attributes": {
+    "frontendUrl": "http://localhost:8081"
+  },
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Platform admin — full access, including model internals and system operations" },
+      { "name": "owner", "description": "Clinic owner — operational pages plus revenue and holdout analysis" },
+      { "name": "staff", "description": "Clinic staff — day-to-day operational pages only" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "ve-console",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "velo_console_dev_secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8002/auth/callback",
+        "http://localhost:8002/login",
+        "http://localhost:8002/login*"
+      ],
+      "webOrigins": ["http://localhost:8002"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:8002/login##http://localhost:8002/login*"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@alnoorclinic.example",
+      "firstName": "Al Noor",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "admin_dev_pw", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "owner",
+      "email": "owner@alnoorclinic.example",
+      "firstName": "Al Noor",
+      "lastName": "Owner",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "owner_dev_pw", "temporary": false }
+      ],
+      "realmRoles": ["owner"]
+    },
+    {
+      "username": "staff",
+      "email": "staff@alnoorclinic.example",
+      "firstName": "Al Noor",
+      "lastName": "Staff",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "staff_dev_pw", "temporary": false }
+      ],
+      "realmRoles": ["staff"]
+    }
+  ]
+}

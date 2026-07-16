@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123d32">
+  <title>Sign in | Velo Engage</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='/auth.css') }}">
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <a class="brand auth-brand" href="/login" aria-label="Velo Engage">
+        <span class="brand-mark">VE</span>
+        <span><strong>Velo Engage</strong><small>Clinic growth console</small></span>
+      </a>
+
+      {% if logged_out %}
+      <div class="auth-banner">
+        <i data-lucide="check-circle-2"></i>
+        <span>You've been signed out. Your session was cleared securely.</span>
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="auth-banner auth-banner-error">
+        <i data-lucide="alert-triangle"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <h1>Sign in to continue</h1>
+      <p class="auth-subtitle">Detect who needs a nudge, rank them by expected value, and reach out automatically — sign in to open {{ clinic_name }}'s console.</p>
+
+      <a class="button primary auth-cta" href="{{ authorize_url }}">
+        <i data-lucide="log-in"></i>
+        <span>Continue to sign in</span>
+      </a>
+
+      <div class="auth-roles auth-roles-3">
+        <div class="auth-role-card">
+          <i data-lucide="users"></i>
+          <div><strong>Staff</strong><small>Day-to-day operations — opportunities, campaigns, WhatsApp, bookings</small></div>
+        </div>
+        <div class="auth-role-card">
+          <i data-lucide="shield-check"></i>
+          <div><strong>Owner</strong><small>Everything staff has, plus revenue and holdout analysis</small></div>
+        </div>
+        <div class="auth-role-card">
+          <i data-lucide="server-cog"></i>
+          <div><strong>Admin</strong><small>Full access, including model internals and system operations</small></div>
+        </div>
+      </div>
+
+      <p class="auth-footnote"><i data-lucide="lock"></i> Authenticated via Keycloak — credentials are never seen by this console.</p>
+    </div>
+  </div>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>window.lucide && window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+version: 1
+family: J
+title: Care-gap analysis (exhaustive guideline sweep)
+methods: [R, D]
+enabled: true
+rule:
+  id: care_gap_due
+  consent_class: care_recall
+  priority: 0.88
+  conditions:
+    all:
+      - {field: care_gap_due_flag, operator: eq, value: true}
+  evidence:
+    care_gap_due_flag: {feature: care_gap_due_flag}
+delivery:
+  template:
+    name: velo_care_gap_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. Our approved care-gap review identified a follow-up for your care team. Reply BOOK to arrange a review, or STOP to opt out."
+activation:
+  source_owner: governed guideline service
+  required_features: [care_gap_due_flag]
+

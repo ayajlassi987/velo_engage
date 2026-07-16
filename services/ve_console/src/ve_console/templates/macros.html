@@ -1,0 +1,58 @@
+{% macro badge(value) -%}
+  <span class="badge badge-{{ (value|string)|lower|replace('_','-') }}">{{ value|string|replace('_',' ')|title }}</span>
+{%- endmacro %}
+
+{% macro empty_state(title='No records found', text='Try changing the current filters.') -%}
+  <div class="empty-state"><i data-lucide="inbox"></i><strong>{{ title }}</strong><span>{{ text }}</span></div>
+{%- endmacro %}
+
+{% macro summary_cards(summary) -%}
+  <section class="metric-grid">
+  {% for key, value in summary.items() %}
+    <article class="metric-card">
+      <span class="metric-label">{{ key|replace('_',' ')|title }}</span>
+      {% if key in ['revenue','recovered','outstanding','spend'] %}
+        <strong>{{ value|money }}</strong>
+      {% elif key in ['roi','booking_rate','treated_rate','holdout_rate','relative_lift'] %}
+        <strong>{{ value|percent }}</strong>
+      {% else %}
+        <strong>{{ '{:,}'.format(value|int) }}</strong>
+      {% endif %}
+      <span class="metric-rule"></span>
+    </article>
+  {% endfor %}
+  </section>
+{%- endmacro %}
+
+{% macro data_table(rows, columns) -%}
+  {% if rows %}
+  <div class="table-frame">
+    <table>
+      <thead><tr>{% for key, label, kind in columns %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+        {% for key, label, kind in columns %}
+          {% set value = row[key] %}
+          <td class="cell-{{ kind }}">
+          {% if kind == 'badge' %}{{ badge(value) }}
+          {% elif kind == 'family' %}<span class="family family-{{ value|lower }}">{{ value }}</span>
+          {% elif kind == 'datetime' %}<span class="date-cell">{{ value|datetime }}</span>
+          {% elif kind == 'campaign' %}
+            {% if value %}<a class="record-link" href="/campaigns/{{ value }}">{{ value[:10] }}<i data-lucide="arrow-up-right"></i></a>{% else %}<span class="muted">Not created</span>{% endif %}
+          {% elif kind == 'score' %}<span class="score"><span style="width:{{ (value|float * 100)|round }}%"></span></span><b>{{ '%.2f'|format(value) }}</b>
+          {% elif kind == 'boolean' %}{% if value %}<span class="boolean yes"><i data-lucide="check"></i>Yes</span>{% else %}<span class="boolean no">No</span>{% endif %}
+          {% elif kind == 'paid' %}{{ badge('paid' if value else 'unpaid') }}
+          {% elif kind == 'money' %}{{ value|money }}
+          {% elif kind == 'money_with_currency' %}{{ value|money(row['currency']) }}
+          {% elif kind == 'mono' %}<span class="mono">{{ value or '-' }}</span>
+          {% else %}{{ value if value is not none else '-' }}{% endif %}
+          </td>
+        {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{{ empty_state() }}{% endif %}
+{%- endmacro %}

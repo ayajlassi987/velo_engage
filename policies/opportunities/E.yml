@@ -1,0 +1,24 @@
+version: 1
+family: E
+title: Event / seasonal (derma/beauty)
+methods: [R, D]
+enabled: true
+rule:
+  id: seasonal_event_eligible
+  consent_class: promotional_outreach
+  priority: 0.45
+  conditions:
+    all:
+      - {field: seasonal_event_eligible_flag, operator: eq, value: true}
+  evidence:
+    seasonal_event_eligible_flag: {feature: seasonal_event_eligible_flag}
+delivery:
+  template:
+    name: velo_seasonal_event_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. A seasonal care event matching your eligibility is available. Reply BOOK for details, or STOP to opt out."
+activation:
+  source_owner: event eligibility service
+  required_features: [seasonal_event_eligible_flag]
+

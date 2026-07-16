@@ -1,0 +1,395 @@
+text,intent,language,source
+أريد موعدا في يوم مختلف,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+available dentist today?,BOOK_APPOINTMENT,en,seed_manual
+جزاكم الله خيرا,THANKS,ar_msa,seed_manual
+لن أحضر الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+وش موعدي,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+يا هلا,GREETING,ar_gulf,seed_manual
+clinic location please,CLINIC_FAQ,en,seed_manual
+اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,seed_manual
+أكيد جاي,CONFIRM_APPOINTMENT,ar_gulf,seed_manual
+i will come,CONFIRM_APPOINTMENT,en,seed_manual
+ابي اشوف مواعيدي,VIEW_APPOINTMENTS,ar_gulf,seed_manual
+ما أوقات العمل؟,CLINIC_FAQ,ar_msa,seed_manual
+thanks,THANKS,en,seed_manual
+أريد إلغاء الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+can i come tomorrow instead,RESCHEDULE_APPOINTMENT,en,seed_manual
+تفاصيل موعدي من فضلك,VIEW_APPOINTMENTS,ar_msa,seed_manual
+شغل اغنية,UNKNOWN,ar_gulf,seed_manual
+أشكركم,THANKS,ar_msa,seed_manual
+good morning,GREETING,en,seed_manual
+أحتاج موعد أسنان اليوم,BOOK_APPOINTMENT,ar_msa,seed_manual
+هلا,GREETING,ar_gulf,seed_manual
+نعم سأكون هناك,CONFIRM_APPOINTMENT,ar_msa,seed_manual
+need appointment asap pls,BOOK_APPOINTMENT,en,seed_manual
+random message xyz,UNKNOWN,en,seed_manual
+لا أستطيع الحضور ألغ الموعد,CANCEL_APPOINTMENT,ar_msa,seed_manual
+how much dental cleaning cost,CLINIC_FAQ,en,seed_manual
+كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,seed_manual
+ok confirmed,CONFIRM_APPOINTMENT,en,seed_manual
+ابي مطعم قريب,UNKNOWN,ar_gulf,seed_manual
+أحتاج وقتا آخر,RESCHEDULE_APPOINTMENT,ar_msa,seed_manual
+أريد حجز موعد قريب,BOOK_APPOINTMENT,ar_msa,seed_manual
+أجل الموعد لو سمحت,RESCHEDULE_APPOINTMENT,ar_gulf,seed_manual
+يعطيكم العافية,THANKS,ar_gulf,seed_manual
+تقبلون التأمين؟,CLINIC_FAQ,ar_gulf,seed_manual
+اعرض مواعيدي القادمة ??,VIEW_APPOINTMENTS,ar_msa,template
+اعرض مواعيدي القادمة asap,VIEW_APPOINTMENTS,ar_msa,template
+pls اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,template
+pls اعرض مواعيدي القادمة please,VIEW_APPOINTMENTS,ar_msa,template
+pls اعرض مواعيدي القادمة pls,VIEW_APPOINTMENTS,ar_msa,template
+pls اعرض مواعيدي القادمة ??,VIEW_APPOINTMENTS,ar_msa,template
+pls اعرض مواعيدي القادمة asap,VIEW_APPOINTMENTS,ar_msa,template
+plz اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,template
+plz اعرض مواعيدي القادمة please,VIEW_APPOINTMENTS,ar_msa,template
+plz اعرض مواعيدي القادمة pls,VIEW_APPOINTMENTS,ar_msa,template
+plz اعرض مواعيدي القادمة ??,VIEW_APPOINTMENTS,ar_msa,template
+plz اعرض مواعيدي القادمة asap,VIEW_APPOINTMENTS,ar_msa,template
+hello اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,template
+hello اعرض مواعيدي القادمة please,VIEW_APPOINTMENTS,ar_msa,template
+hello اعرض مواعيدي القادمة pls,VIEW_APPOINTMENTS,ar_msa,template
+hello اعرض مواعيدي القادمة ??,VIEW_APPOINTMENTS,ar_msa,template
+hello اعرض مواعيدي القادمة asap,VIEW_APPOINTMENTS,ar_msa,template
+hi اعرض مواعيدي القادمة,VIEW_APPOINTMENTS,ar_msa,template
+hi اعرض مواعيدي القادمة please,VIEW_APPOINTMENTS,ar_msa,template
+hi اعرض مواعيدي القادمة pls,VIEW_APPOINTMENTS,ar_msa,template
+hi اعرض مواعيدي القادمة ??,VIEW_APPOINTMENTS,ar_msa,template
+hi اعرض مواعيدي القادمة asap,VIEW_APPOINTMENTS,ar_msa,template
+ابي اشوف مواعيدي please,VIEW_APPOINTMENTS,ar_gulf,template
+ابي اشوف مواعيدي pls,VIEW_APPOINTMENTS,ar_gulf,template
+ابي اشوف مواعيدي ??,VIEW_APPOINTMENTS,ar_gulf,template
+ابي اشوف مواعيدي asap,VIEW_APPOINTMENTS,ar_gulf,template
+pls ابي اشوف مواعيدي,VIEW_APPOINTMENTS,ar_gulf,template
+pls ابي اشوف مواعيدي please,VIEW_APPOINTMENTS,ar_gulf,template
+pls ابي اشوف مواعيدي pls,VIEW_APPOINTMENTS,ar_gulf,template
+pls ابي اشوف مواعيدي ??,VIEW_APPOINTMENTS,ar_gulf,template
+pls ابي اشوف مواعيدي asap,VIEW_APPOINTMENTS,ar_gulf,template
+plz ابي اشوف مواعيدي,VIEW_APPOINTMENTS,ar_gulf,template
+plz ابي اشوف مواعيدي please,VIEW_APPOINTMENTS,ar_gulf,template
+plz ابي اشوف مواعيدي pls,VIEW_APPOINTMENTS,ar_gulf,template
+plz ابي اشوف مواعيدي ??,VIEW_APPOINTMENTS,ar_gulf,template
+plz ابي اشوف مواعيدي asap,VIEW_APPOINTMENTS,ar_gulf,template
+hello ابي اشوف مواعيدي,VIEW_APPOINTMENTS,ar_gulf,template
+hello ابي اشوف مواعيدي please,VIEW_APPOINTMENTS,ar_gulf,template
+hello ابي اشوف مواعيدي pls,VIEW_APPOINTMENTS,ar_gulf,template
+hello ابي اشوف مواعيدي ??,VIEW_APPOINTMENTS,ar_gulf,template
+I need a derma appointment asap,BOOK_APPOINTMENT,en,template
+I need a derma appointment asap please,BOOK_APPOINTMENT,en,template
+I need a derma appointment asap pls,BOOK_APPOINTMENT,en,template
+I need a derma appointment asap ??,BOOK_APPOINTMENT,en,template
+I need a derma appointment asap asap,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment asap,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment asap please,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment asap pls,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment asap ??,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment asap asap,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment asap,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment asap please,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment asap pls,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment asap ??,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment asap asap,BOOK_APPOINTMENT,en,template
+hello I need a derma appointment asap,BOOK_APPOINTMENT,en,template
+hello I need a derma appointment asap please,BOOK_APPOINTMENT,en,template
+hello I need a derma appointment asap pls,BOOK_APPOINTMENT,en,template
+hello I need a derma appointment asap ??,BOOK_APPOINTMENT,en,template
+hello I need a derma appointment asap asap,BOOK_APPOINTMENT,en,template
+hi I need a derma appointment asap,BOOK_APPOINTMENT,en,template
+hi I need a derma appointment asap please,BOOK_APPOINTMENT,en,template
+hi I need a derma appointment asap pls,BOOK_APPOINTMENT,en,template
+hi I need a derma appointment asap ??,BOOK_APPOINTMENT,en,template
+hi I need a derma appointment asap asap,BOOK_APPOINTMENT,en,template
+I need a derma appointment this week,BOOK_APPOINTMENT,en,template
+I need a derma appointment this week please,BOOK_APPOINTMENT,en,template
+I need a derma appointment this week pls,BOOK_APPOINTMENT,en,template
+I need a derma appointment this week ??,BOOK_APPOINTMENT,en,template
+I need a derma appointment this week asap,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment this week,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment this week please,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment this week pls,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment this week ??,BOOK_APPOINTMENT,en,template
+pls I need a derma appointment this week asap,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment this week,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment this week please,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment this week pls,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment this week ??,BOOK_APPOINTMENT,en,template
+plz I need a derma appointment this week asap,BOOK_APPOINTMENT,en,template
+ابي الغي موعدي الصباح please,CANCEL_APPOINTMENT,ar_gulf,template
+ابي الغي موعدي الصباح pls,CANCEL_APPOINTMENT,ar_gulf,template
+ابي الغي موعدي الصباح ??,CANCEL_APPOINTMENT,ar_gulf,template
+ابي الغي موعدي الصباح asap,CANCEL_APPOINTMENT,ar_gulf,template
+pls ابي الغي موعدي الصباح,CANCEL_APPOINTMENT,ar_gulf,template
+pls ابي الغي موعدي الصباح please,CANCEL_APPOINTMENT,ar_gulf,template
+pls ابي الغي موعدي الصباح pls,CANCEL_APPOINTMENT,ar_gulf,template
+pls ابي الغي موعدي الصباح ??,CANCEL_APPOINTMENT,ar_gulf,template
+pls ابي الغي موعدي الصباح asap,CANCEL_APPOINTMENT,ar_gulf,template
+plz ابي الغي موعدي الصباح,CANCEL_APPOINTMENT,ar_gulf,template
+plz ابي الغي موعدي الصباح please,CANCEL_APPOINTMENT,ar_gulf,template
+plz ابي الغي موعدي الصباح pls,CANCEL_APPOINTMENT,ar_gulf,template
+plz ابي الغي موعدي الصباح ??,CANCEL_APPOINTMENT,ar_gulf,template
+plz ابي الغي موعدي الصباح asap,CANCEL_APPOINTMENT,ar_gulf,template
+hello ابي الغي موعدي الصباح,CANCEL_APPOINTMENT,ar_gulf,template
+hello ابي الغي موعدي الصباح please,CANCEL_APPOINTMENT,ar_gulf,template
+hello ابي الغي موعدي الصباح pls,CANCEL_APPOINTMENT,ar_gulf,template
+hello ابي الغي موعدي الصباح ??,CANCEL_APPOINTMENT,ar_gulf,template
+hello ابي الغي موعدي الصباح asap,CANCEL_APPOINTMENT,ar_gulf,template
+hi ابي الغي موعدي الصباح,CANCEL_APPOINTMENT,ar_gulf,template
+hi ابي الغي موعدي الصباح please,CANCEL_APPOINTMENT,ar_gulf,template
+hi ابي الغي موعدي الصباح pls,CANCEL_APPOINTMENT,ar_gulf,template
+hi ابي الغي موعدي الصباح ??,CANCEL_APPOINTMENT,ar_gulf,template
+hi ابي الغي موعدي الصباح asap,CANCEL_APPOINTMENT,ar_gulf,template
+ما اقدر اجي كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,template
+ما اقدر اجي كنسل الموعد please,CANCEL_APPOINTMENT,ar_gulf,template
+ما اقدر اجي كنسل الموعد pls,CANCEL_APPOINTMENT,ar_gulf,template
+ما اقدر اجي كنسل الموعد ??,CANCEL_APPOINTMENT,ar_gulf,template
+ما اقدر اجي كنسل الموعد asap,CANCEL_APPOINTMENT,ar_gulf,template
+pls ما اقدر اجي كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,template
+pls ما اقدر اجي كنسل الموعد please,CANCEL_APPOINTMENT,ar_gulf,template
+pls ما اقدر اجي كنسل الموعد pls,CANCEL_APPOINTMENT,ar_gulf,template
+pls ما اقدر اجي كنسل الموعد ??,CANCEL_APPOINTMENT,ar_gulf,template
+pls ما اقدر اجي كنسل الموعد asap,CANCEL_APPOINTMENT,ar_gulf,template
+plz ما اقدر اجي كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,template
+plz ما اقدر اجي كنسل الموعد please,CANCEL_APPOINTMENT,ar_gulf,template
+plz ما اقدر اجي كنسل الموعد pls,CANCEL_APPOINTMENT,ar_gulf,template
+plz ما اقدر اجي كنسل الموعد ??,CANCEL_APPOINTMENT,ar_gulf,template
+plz ما اقدر اجي كنسل الموعد asap,CANCEL_APPOINTMENT,ar_gulf,template
+hello ما اقدر اجي كنسل الموعد,CANCEL_APPOINTMENT,ar_gulf,template
+أريد تغيير الموعد إلى هذا الأسبوع please,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى هذا الأسبوع pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى هذا الأسبوع ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى هذا الأسبوع asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى هذا الأسبوع,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى هذا الأسبوع please,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى هذا الأسبوع pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى هذا الأسبوع ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى هذا الأسبوع asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى هذا الأسبوع,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى هذا الأسبوع please,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى هذا الأسبوع pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى هذا الأسبوع ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى هذا الأسبوع asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى هذا الأسبوع,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى هذا الأسبوع please,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى هذا الأسبوع pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى هذا الأسبوع ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى هذا الأسبوع asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+hi أريد تغيير الموعد إلى هذا الأسبوع,RESCHEDULE_APPOINTMENT,ar_msa,template
+hi أريد تغيير الموعد إلى هذا الأسبوع please,RESCHEDULE_APPOINTMENT,ar_msa,template
+hi أريد تغيير الموعد إلى هذا الأسبوع pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+hi أريد تغيير الموعد إلى هذا الأسبوع ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+hi أريد تغيير الموعد إلى هذا الأسبوع asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى بعد العصر,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى بعد العصر please,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى بعد العصر pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى بعد العصر ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+أريد تغيير الموعد إلى بعد العصر asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى بعد العصر,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى بعد العصر please,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى بعد العصر pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى بعد العصر ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+pls أريد تغيير الموعد إلى بعد العصر asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى بعد العصر,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى بعد العصر please,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى بعد العصر pls,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى بعد العصر ??,RESCHEDULE_APPOINTMENT,ar_msa,template
+plz أريد تغيير الموعد إلى بعد العصر asap,RESCHEDULE_APPOINTMENT,ar_msa,template
+hello أريد تغيير الموعد إلى بعد العصر,RESCHEDULE_APPOINTMENT,ar_msa,template
+i will be there today please,CONFIRM_APPOINTMENT,en,template
+i will be there today pls,CONFIRM_APPOINTMENT,en,template
+i will be there today ??,CONFIRM_APPOINTMENT,en,template
+i will be there today asap,CONFIRM_APPOINTMENT,en,template
+pls i will be there today,CONFIRM_APPOINTMENT,en,template
+pls i will be there today please,CONFIRM_APPOINTMENT,en,template
+pls i will be there today pls,CONFIRM_APPOINTMENT,en,template
+pls i will be there today ??,CONFIRM_APPOINTMENT,en,template
+pls i will be there today asap,CONFIRM_APPOINTMENT,en,template
+plz i will be there today,CONFIRM_APPOINTMENT,en,template
+plz i will be there today please,CONFIRM_APPOINTMENT,en,template
+plz i will be there today pls,CONFIRM_APPOINTMENT,en,template
+plz i will be there today ??,CONFIRM_APPOINTMENT,en,template
+plz i will be there today asap,CONFIRM_APPOINTMENT,en,template
+hello i will be there today,CONFIRM_APPOINTMENT,en,template
+hello i will be there today please,CONFIRM_APPOINTMENT,en,template
+hello i will be there today pls,CONFIRM_APPOINTMENT,en,template
+hello i will be there today ??,CONFIRM_APPOINTMENT,en,template
+hello i will be there today asap,CONFIRM_APPOINTMENT,en,template
+hi i will be there today,CONFIRM_APPOINTMENT,en,template
+hi i will be there today please,CONFIRM_APPOINTMENT,en,template
+hi i will be there today pls,CONFIRM_APPOINTMENT,en,template
+hi i will be there today ??,CONFIRM_APPOINTMENT,en,template
+hi i will be there today asap,CONFIRM_APPOINTMENT,en,template
+i will be there tomorrow,CONFIRM_APPOINTMENT,en,template
+i will be there tomorrow please,CONFIRM_APPOINTMENT,en,template
+i will be there tomorrow pls,CONFIRM_APPOINTMENT,en,template
+i will be there tomorrow ??,CONFIRM_APPOINTMENT,en,template
+i will be there tomorrow asap,CONFIRM_APPOINTMENT,en,template
+pls i will be there tomorrow,CONFIRM_APPOINTMENT,en,template
+pls i will be there tomorrow please,CONFIRM_APPOINTMENT,en,template
+pls i will be there tomorrow pls,CONFIRM_APPOINTMENT,en,template
+pls i will be there tomorrow ??,CONFIRM_APPOINTMENT,en,template
+pls i will be there tomorrow asap,CONFIRM_APPOINTMENT,en,template
+plz i will be there tomorrow,CONFIRM_APPOINTMENT,en,template
+plz i will be there tomorrow please,CONFIRM_APPOINTMENT,en,template
+plz i will be there tomorrow pls,CONFIRM_APPOINTMENT,en,template
+plz i will be there tomorrow ??,CONFIRM_APPOINTMENT,en,template
+plz i will be there tomorrow asap,CONFIRM_APPOINTMENT,en,template
+hello i will be there tomorrow,CONFIRM_APPOINTMENT,en,template
+do you have location information ??,CLINIC_FAQ,en,template
+do you have location information asap,CLINIC_FAQ,en,template
+pls do you have location information,CLINIC_FAQ,en,template
+pls do you have location information please,CLINIC_FAQ,en,template
+pls do you have location information pls,CLINIC_FAQ,en,template
+pls do you have location information ??,CLINIC_FAQ,en,template
+pls do you have location information asap,CLINIC_FAQ,en,template
+plz do you have location information,CLINIC_FAQ,en,template
+plz do you have location information please,CLINIC_FAQ,en,template
+plz do you have location information pls,CLINIC_FAQ,en,template
+plz do you have location information ??,CLINIC_FAQ,en,template
+plz do you have location information asap,CLINIC_FAQ,en,template
+hello do you have location information,CLINIC_FAQ,en,template
+hello do you have location information please,CLINIC_FAQ,en,template
+hello do you have location information pls,CLINIC_FAQ,en,template
+hello do you have location information ??,CLINIC_FAQ,en,template
+hello do you have location information asap,CLINIC_FAQ,en,template
+hi do you have location information,CLINIC_FAQ,en,template
+hi do you have location information please,CLINIC_FAQ,en,template
+hi do you have location information pls,CLINIC_FAQ,en,template
+hi do you have location information ??,CLINIC_FAQ,en,template
+hi do you have location information asap,CLINIC_FAQ,en,template
+do you have opening hours information,CLINIC_FAQ,en,template
+do you have opening hours information please,CLINIC_FAQ,en,template
+do you have opening hours information pls,CLINIC_FAQ,en,template
+do you have opening hours information ??,CLINIC_FAQ,en,template
+do you have opening hours information asap,CLINIC_FAQ,en,template
+pls do you have opening hours information,CLINIC_FAQ,en,template
+pls do you have opening hours information please,CLINIC_FAQ,en,template
+pls do you have opening hours information pls,CLINIC_FAQ,en,template
+pls do you have opening hours information ??,CLINIC_FAQ,en,template
+pls do you have opening hours information asap,CLINIC_FAQ,en,template
+plz do you have opening hours information,CLINIC_FAQ,en,template
+plz do you have opening hours information please,CLINIC_FAQ,en,template
+plz do you have opening hours information pls,CLINIC_FAQ,en,template
+plz do you have opening hours information ??,CLINIC_FAQ,en,template
+plz do you have opening hours information asap,CLINIC_FAQ,en,template
+hello do you have opening hours information,CLINIC_FAQ,en,template
+hello do you have opening hours information please,CLINIC_FAQ,en,template
+hello do you have opening hours information pls,CLINIC_FAQ,en,template
+plz أهلا,GREETING,ar_msa,template
+plz أهلا please,GREETING,ar_msa,template
+plz أهلا pls,GREETING,ar_msa,template
+plz أهلا ??,GREETING,ar_msa,template
+plz أهلا asap,GREETING,ar_msa,template
+hello أهلا,GREETING,ar_msa,template
+hello أهلا please,GREETING,ar_msa,template
+hello أهلا pls,GREETING,ar_msa,template
+hello أهلا ??,GREETING,ar_msa,template
+hello أهلا asap,GREETING,ar_msa,template
+hi أهلا,GREETING,ar_msa,template
+hi أهلا please,GREETING,ar_msa,template
+hi أهلا pls,GREETING,ar_msa,template
+hi أهلا ??,GREETING,ar_msa,template
+hi أهلا asap,GREETING,ar_msa,template
+هلا please,GREETING,ar_msa,template
+هلا pls,GREETING,ar_msa,template
+هلا ??,GREETING,ar_msa,template
+هلا asap,GREETING,ar_msa,template
+pls هلا,GREETING,ar_msa,template
+pls هلا please,GREETING,ar_msa,template
+pls هلا pls,GREETING,ar_msa,template
+pls هلا ??,GREETING,ar_msa,template
+pls هلا asap,GREETING,ar_msa,template
+plz هلا,GREETING,ar_msa,template
+plz هلا please,GREETING,ar_msa,template
+plz هلا pls,GREETING,ar_msa,template
+plz هلا ??,GREETING,ar_msa,template
+plz هلا asap,GREETING,ar_msa,template
+hello هلا,GREETING,ar_msa,template
+hello هلا please,GREETING,ar_msa,template
+hello هلا pls,GREETING,ar_msa,template
+hello هلا ??,GREETING,ar_msa,template
+hello هلا asap,GREETING,ar_msa,template
+hi هلا,GREETING,ar_msa,template
+hi هلا please,GREETING,ar_msa,template
+hi هلا pls,GREETING,ar_msa,template
+hi هلا ??,GREETING,ar_msa,template
+hi هلا asap,GREETING,ar_msa,template
+يا هلا please,GREETING,ar_msa,template
+pls ok thanks pls,THANKS,en,template
+pls ok thanks ??,THANKS,en,template
+pls ok thanks asap,THANKS,en,template
+plz ok thanks,THANKS,en,template
+plz ok thanks please,THANKS,en,template
+plz ok thanks pls,THANKS,en,template
+plz ok thanks ??,THANKS,en,template
+plz ok thanks asap,THANKS,en,template
+hello ok thanks,THANKS,en,template
+hello ok thanks please,THANKS,en,template
+hello ok thanks pls,THANKS,en,template
+hello ok thanks ??,THANKS,en,template
+hello ok thanks asap,THANKS,en,template
+hi ok thanks,THANKS,en,template
+hi ok thanks please,THANKS,en,template
+hi ok thanks pls,THANKS,en,template
+hi ok thanks ??,THANKS,en,template
+hi ok thanks asap,THANKS,en,template
+great thanks,THANKS,en,template
+great thanks please,THANKS,en,template
+great thanks pls,THANKS,en,template
+great thanks ??,THANKS,en,template
+great thanks asap,THANKS,en,template
+pls great thanks,THANKS,en,template
+pls great thanks please,THANKS,en,template
+pls great thanks pls,THANKS,en,template
+pls great thanks ??,THANKS,en,template
+pls great thanks asap,THANKS,en,template
+plz great thanks,THANKS,en,template
+plz great thanks please,THANKS,en,template
+plz great thanks pls,THANKS,en,template
+plz great thanks ??,THANKS,en,template
+plz great thanks asap,THANKS,en,template
+hello great thanks,THANKS,en,template
+hello great thanks please,THANKS,en,template
+hello great thanks pls,THANKS,en,template
+hello great thanks ??,THANKS,en,template
+hello great thanks asap,THANKS,en,template
+hi great thanks,THANKS,en,template
+hi great thanks please,THANKS,en,template
+i need weather info pls,UNKNOWN,en,template
+i need weather info ??,UNKNOWN,en,template
+i need weather info asap,UNKNOWN,en,template
+pls i need weather info,UNKNOWN,en,template
+pls i need weather info please,UNKNOWN,en,template
+pls i need weather info pls,UNKNOWN,en,template
+pls i need weather info ??,UNKNOWN,en,template
+pls i need weather info asap,UNKNOWN,en,template
+plz i need weather info,UNKNOWN,en,template
+plz i need weather info please,UNKNOWN,en,template
+plz i need weather info pls,UNKNOWN,en,template
+plz i need weather info ??,UNKNOWN,en,template
+plz i need weather info asap,UNKNOWN,en,template
+hello i need weather info,UNKNOWN,en,template
+hello i need weather info please,UNKNOWN,en,template
+hello i need weather info pls,UNKNOWN,en,template
+hello i need weather info ??,UNKNOWN,en,template
+hello i need weather info asap,UNKNOWN,en,template
+hi i need weather info,UNKNOWN,en,template
+hi i need weather info please,UNKNOWN,en,template
+hi i need weather info pls,UNKNOWN,en,template
+hi i need weather info ??,UNKNOWN,en,template
+hi i need weather info asap,UNKNOWN,en,template
+i need restaurant info,UNKNOWN,en,template
+i need restaurant info please,UNKNOWN,en,template
+i need restaurant info pls,UNKNOWN,en,template
+i need restaurant info ??,UNKNOWN,en,template
+i need restaurant info asap,UNKNOWN,en,template
+pls i need restaurant info,UNKNOWN,en,template
+pls i need restaurant info please,UNKNOWN,en,template
+pls i need restaurant info pls,UNKNOWN,en,template
+pls i need restaurant info ??,UNKNOWN,en,template
+pls i need restaurant info asap,UNKNOWN,en,template
+plz i need restaurant info,UNKNOWN,en,template
+plz i need restaurant info please,UNKNOWN,en,template
+plz i need restaurant info pls,UNKNOWN,en,template
+plz i need restaurant info ??,UNKNOWN,en,template
+plz i need restaurant info asap,UNKNOWN,en,template
+hello i need restaurant info,UNKNOWN,en,template
+hello i need restaurant info please,UNKNOWN,en,template

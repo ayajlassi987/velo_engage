@@ -1,0 +1,24 @@
+version: 1
+family: B
+title: Clinical recall (condition/age/sex/med)
+methods: [R, Graph]
+enabled: true
+rule:
+  id: clinical_recall_due
+  consent_class: clinical_recall
+  priority: 0.85
+  conditions:
+    all:
+      - {field: clinical_recall_due_flag, operator: eq, value: true}
+  evidence:
+    clinical_recall_due_flag: {feature: clinical_recall_due_flag}
+delivery:
+  template:
+    name: velo_clinical_recall_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. Our care team has identified that a clinical recall may be due. Reply BOOK to request an appointment, or STOP to opt out."
+activation:
+  source_owner: clinical-recall service
+  required_features: [clinical_recall_due_flag]
+

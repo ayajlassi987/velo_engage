@@ -1,0 +1,24 @@
+version: 1
+family: K
+title: Digital intent (abandoned booking, page intent, churn)
+methods: [D, AI]
+enabled: true
+rule:
+  id: abandoned_booking
+  consent_class: digital_followup
+  priority: 0.65
+  conditions:
+    all:
+      - {field: abandoned_booking_flag, operator: eq, value: true}
+  evidence:
+    abandoned_booking_flag: {feature: abandoned_booking_flag}
+delivery:
+  template:
+    name: velo_abandoned_booking_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. It looks like your booking was not completed. Reply BOOK and we will help you finish, or STOP to opt out."
+activation:
+  source_owner: digital intent service
+  required_features: [abandoned_booking_flag]
+

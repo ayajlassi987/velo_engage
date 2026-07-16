@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "macros.html" import summary_cards, data_table %}
+{% block content %}
+  {{ summary_cards(summary) }}
+
+  <section class="content-section">
+    <div class="section-toolbar">
+      <div><h2>All {{ title|lower }}</h2><span>Showing up to 200 latest records</span></div>
+      <form class="filters" method="get">
+        <label class="search-field"><i data-lucide="search"></i><input name="q" value="{{ filters.q or '' }}" placeholder="Search patient or ID"></label>
+        {% if filter_kind == 'opportunities' %}
+          <select name="family" aria-label="Family"><option value="all">All families</option>{% for value in families %}<option value="{{ value }}" {{ 'selected' if filters.family == value else '' }}>Family {{ value }}</option>{% endfor %}</select>
+          <select name="status" aria-label="Status"><option value="all">All statuses</option>{% for value in ['open','created','holdout','sent','delivered','read','replied','booking_requested','booked','attended'] %}<option value="{{ value }}" {{ 'selected' if filters.status == value else '' }}>{{ value|replace('_',' ')|title }}</option>{% endfor %}</select>
+        {% elif filter_kind == 'campaigns' %}
+          <select name="arm" aria-label="Treatment arm"><option value="all">All arms</option>{% for value in ['treated','holdout'] %}<option value="{{ value }}" {{ 'selected' if filters.arm == value else '' }}>{{ value|title }}</option>{% endfor %}</select>
+          <select name="status" aria-label="Status"><option value="all">All statuses</option>{% for value in ['open','holdout','sent','delivered','read','replied','booking_requested','booked','attended'] %}<option value="{{ value }}" {{ 'selected' if filters.status == value else '' }}>{{ value|replace('_',' ')|title }}</option>{% endfor %}</select>
+        {% elif filter_kind == 'bookings' %}
+          <select name="status" aria-label="Status"><option value="all">All statuses</option>{% for value in ['booked','attended'] %}<option value="{{ value }}" {{ 'selected' if filters.status == value else '' }}>{{ value|title }}</option>{% endfor %}</select>
+        {% elif filter_kind == 'revenue' %}
+          <select name="state" aria-label="Payment state"><option value="all">All payments</option>{% for value in ['paid','unpaid'] %}<option value="{{ value }}" {{ 'selected' if filters.state == value else '' }}>{{ value|title }}</option>{% endfor %}</select>
+        {% endif %}
+        <button class="button secondary" type="submit"><i data-lucide="list-filter"></i>Apply</button>
+      </form>
+    </div>
+    {{ data_table(rows, columns) }}
+  </section>
+{% endblock %}
