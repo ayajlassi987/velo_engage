@@ -74,6 +74,20 @@ def test_extract_structured_data_accumulates_tokens_and_parses_json(monkeypatch)
     assert captured[0]["json"]["messages"][0]["role"] == "user"
 
 
+def test_extract_structured_data_strips_markdown_fences(monkeypatch):
+    """Regression test: confirmed live that MedGemma wraps its JSON in
+    ```json ... ``` fences despite the prompt saying not to."""
+    payload = {"diagnoses": [], "medications": [], "procedures": [], "follow_up_recommendations": [], "clinical_risks": []}
+    fenced = "```json\n" + json.dumps(payload) + "\n```"
+    events = [{"type": "token", "text": fenced}]
+    response = FakeStreamResponse(_sse_lines(*events))
+    monkeypatch.setattr(mc.httpx, "Client", lambda timeout=None: FakeClient(response, []))
+
+    result = mc.extract_structured_data("Arm should heal quickly.")
+
+    assert result == payload
+
+
 def test_extract_structured_data_raises_on_invalid_json(monkeypatch):
     events = [{"type": "token", "text": "not valid json"}]
     response = FakeStreamResponse(_sse_lines(*events))

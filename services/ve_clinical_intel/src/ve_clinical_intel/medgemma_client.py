@@ -14,10 +14,22 @@ server, so this always requests stream=true.
 
 import json
 import os
+import re
 
 import httpx
 
 MEDGEMMA_URL = os.getenv("MEDGEMMA_URL", "http://localhost:8080")
+
+# Confirmed live: MedGemma wraps its JSON in markdown code fences despite the
+# prompt explicitly saying not to ("no markdown fences, no commentary") —
+# LLMs don't always follow that instruction, so strip fences defensively
+# rather than relying on it.
+_MARKDOWN_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```$", re.DOTALL)
+
+
+def _strip_markdown_fences(text: str) -> str:
+    match = _MARKDOWN_FENCE_RE.match(text.strip())
+    return match.group(1) if match else text
 
 EXTRACTION_PROMPT = """You are extracting structured medical information from a clinical note. \
 Read the note below and respond with ONLY a JSON object (no markdown fences, no commentary) \
@@ -60,8 +72,9 @@ def extract_structured_data(note_text: str) -> dict:
             response.raise_for_status()
             full_text = _accumulate_stream(response)
 
+    cleaned_text = _strip_markdown_fences(full_text)
     try:
-        return json.loads(full_text)
+        return json.loads(cleaned_text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"MedGemma response was not valid JSON: {exc}. Raw length: {len(full_text)}") from exc
 
