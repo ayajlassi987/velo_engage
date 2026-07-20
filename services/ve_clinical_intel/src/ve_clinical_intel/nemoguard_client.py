@@ -20,6 +20,7 @@ import os
 import httpx
 
 NEMOGUARD_URL = os.getenv("NEMOGUARD_URL", "http://localhost:8001")
+NEMOGUARD_MODEL = "nvidia/llama-3.1-nemoguard-8b-content-safety"
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ def check_safety(text: str) -> bool:
     Any communication or parsing failure blocks (returns False) rather
     than silently passing unchecked content to MedGemma."""
     payload = {
+        "model": NEMOGUARD_MODEL,
         "messages": [{"role": "user", "content": SAFETY_CHECK_PROMPT.format(text=text)}],
         "max_tokens": 100,
     }

@@ -19,9 +19,10 @@ class FakeResponse:
 
 
 class FakeClient:
-    def __init__(self, response=None, raise_exc=None):
+    def __init__(self, response=None, raise_exc=None, captured_payloads=None):
         self._response = response
         self._raise_exc = raise_exc
+        self._captured_payloads = captured_payloads
 
     def __enter__(self):
         return self
@@ -30,6 +31,8 @@ class FakeClient:
         return False
 
     def post(self, url, json=None):
+        if self._captured_payloads is not None:
+            self._captured_payloads.append(json)
         if self._raise_exc:
             raise self._raise_exc
         return self._response
@@ -83,3 +86,14 @@ def test_malformed_response_shape_blocks_fail_safe(monkeypatch):
     bad_response = FakeResponse({"unexpected": "shape"})  # no "choices" key
     monkeypatch.setattr(nc.httpx, "Client", lambda timeout=None: FakeClient(bad_response))
     assert nc.check_safety("some text") is False
+
+
+def test_payload_includes_required_model_field(monkeypatch):
+    """Regression test: the NIM's OpenAI-compatible endpoint 400s if "model"
+    is missing from the request body — confirmed live on the DGX (curl
+    payloads always included it, but check_safety()'s own payload didn't,
+    since nothing here mocks the real API's field validation)."""
+    captured = []
+    monkeypatch.setattr(nc.httpx, "Client", lambda timeout=None: FakeClient(_chat_response('{"User Safety": "safe"}'), captured_payloads=captured))
+    nc.check_safety("some text")
+    assert captured[0]["model"] == nc.NEMOGUARD_MODEL
