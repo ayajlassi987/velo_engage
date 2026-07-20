@@ -1,11 +1,12 @@
 from dotenv import load_dotenv; load_dotenv()
 import logging
 from fastapi import FastAPI, BackgroundTasks, Response
+from pydantic import BaseModel
 from ve_connect.auth import router as auth_router, _db, epic_configuration_status
-from ve_connect.adapter import pull_patient_cohort
+from ve_connect.adapter import pull_patient_cohort, _pull_clinical_notes, upsert_clinical_extraction
 from ve_connect.epic_bulk import run_bulk_export
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="ve_connect")
@@ -38,6 +39,47 @@ async def pull_bulk_sync(group_id: str | None = None):
         return {"status": "failed", "error": str(exc)}
 
 
+@app.get("/patients/{patient_id}/clinical-notes")
+async def clinical_notes(patient_id: str):
+    """For Task 2's clinical-note-intelligence service (runs on the DGX,
+    calls this over the network) — notes are returned here and never
+    written to ve_connect's own database; this endpoint is the only place
+    raw note text exists on this machine, and only transiently in the
+    HTTP response body."""
+    notes = _pull_clinical_notes(patient_id)
+    return {"patient_id": patient_id, "notes": notes}
+
+
+class ClinicalExtractionIn(BaseModel):
+    patient_id: str
+    clinic_id: str
+    document_reference_id: str
+    note_date: str | None = None
+    diagnoses: list = []
+    medications: list = []
+    procedures: list = []
+    follow_up_recommendations: list = []
+    clinical_risks: list = []
+    safety_check_passed: bool
+    validation_flags: list = []
+
+
+@app.post("/clinical-extractions")
+async def clinical_extractions(body: ClinicalExtractionIn):
+    """Write path for Task 2's DGX-side extraction service — see the
+    /patients/{id}/clinical-notes read path above. The DGX has no direct
+    route to Postgres (no root there to set up a VPN network interface),
+    so this HTTP call is how extraction results get persisted instead."""
+    extraction_id = upsert_clinical_extraction(
+        patient_id=body.patient_id, clinic_id=body.clinic_id,
+        document_reference_id=body.document_reference_id, note_date=body.note_date,
+        diagnoses=body.diagnoses, medications=body.medications, procedures=body.procedures,
+        follow_up_recommendations=body.follow_up_recommendations, clinical_risks=body.clinical_risks,
+        safety_check_passed=body.safety_check_passed, validation_flags=body.validation_flags,
+    )
+    return {"extraction_id": extraction_id}
+
+
 @app.get("/auth/status")
 async def auth_status():
     configuration = epic_configuration_status()
@@ -55,7 +97,7 @@ async def auth_status():
     if not row:
         return {"authorized": False, "action": "Visit /auth/login"}
     expires_at, scope = row
-    return {"authorized": True, "token_valid": datetime.utcnow() < expires_at,
+    return {"authorized": True, "token_valid": datetime.now(timezone.utc) < expires_at,
             "expires_at": expires_at.isoformat(), "scope": scope}
 
 

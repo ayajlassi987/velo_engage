@@ -3,7 +3,7 @@ Pulls a full patient cohort from Epic → maps to features → writes to Postgre
 Replaces seed_dummy_patients.py entirely once authorized.
 """
 
-import csv, json, logging, os, sys
+import base64, csv, hashlib, json, logging, os, sys
 from datetime import date, timedelta
 from pathlib import Path
 import psycopg2
@@ -79,6 +79,149 @@ def _careplans_or_empty(pid: str) -> list[dict]:
     except Exception as exc:
         logger.warning(f"CarePlan search unavailable for {pid} ({exc}) — treating as no active care plan")
         return []
+
+
+_HTML_TAG_RE = None  # compiled lazily, see _strip_html
+
+
+def _strip_html(html: str) -> str:
+    """Minimal, dependency-free tag stripping for text/html clinical note
+    attachments — confirmed live against real Epic sandbox data that this
+    is the dominant format (not text/plain as originally assumed; see
+    PROJECT_STATUS.md). Not a full HTML parser, just enough to give
+    MedGemma clean prose instead of markup noise."""
+    global _HTML_TAG_RE
+    if _HTML_TAG_RE is None:
+        import re
+        _HTML_TAG_RE = re.compile(r"<[^>]+>")
+    import html as html_module
+    text = _HTML_TAG_RE.sub(" ", html)
+    return html_module.unescape(" ".join(text.split()))
+
+
+def _is_clinical_note(ref: dict) -> bool:
+    """Epic's DocumentReference search for a patient returns far more than
+    actual clinical notes — confirmed live: HIPAA privacy notices, advance
+    directives, and other administrative documents (with no real
+    attachment content — data-absent-reason: not-applicable) are mixed in
+    alongside real progress notes. Filters to the US Core
+    'clinical-note' category so MedGemma only ever sees real notes."""
+    for category in ref.get("category", []):
+        for coding in category.get("coding", []):
+            if coding.get("code") == "clinical-note":
+                return True
+    return False
+
+
+def _pull_clinical_notes(pid: str) -> list[dict]:
+    """Returns clinical notes for a patient, for Task 2 (clinical note
+    intelligence) — never persisted here or anywhere else in ve_connect,
+    only returned over HTTP for the DGX-side extraction service to
+    consume and discard after processing (see PROJECT_STATUS.md).
+
+    Defensive in the same style as _careplans_or_empty: DocumentReference
+    is a newly-scoped resource type for this app (see EPIC_SCOPES), not
+    yet proven stable against this app's specific Epic authorization the
+    way Condition/Encounter/Procedure/Coverage are — one unavailable
+    resource type shouldn't block the rest of a patient pull.
+
+    v1 scope, confirmed against real Epic sandbox data (not assumed):
+    text/plain, XML (e.g. CCDA), and text/html (the dominant real-world
+    format — Epic's actual notes came back as text/html, not text/plain)
+    are decoded, with HTML tags stripped for cleaner LLM input. text/rtf
+    and PDF/scanned-image notes are out of scope for v1 — both need a
+    real parser (RTF, OCR) this pipeline doesn't have.
+    """
+    try:
+        refs = search_resources("DocumentReference", {"patient": pid, "status": "current"})
+    except Exception as exc:
+        logger.warning(f"DocumentReference search unavailable for {pid} ({exc}) — no notes pulled")
+        return []
+
+    notes = []
+    for ref in refs:
+        if not _is_clinical_note(ref):
+            continue
+        for attachment in ref.get("content", []):
+            att = attachment.get("attachment", {})
+            content_type = att.get("contentType", "")
+            if content_type not in ("text/plain", "text/xml", "application/xml", "text/html"):
+                continue
+            binary_id = att.get("url", "").split("/")[-1]
+            if not binary_id:
+                continue
+            try:
+                binary = get_resource("Binary", binary_id)
+            except Exception as exc:
+                logger.warning(f"Binary fetch failed for {binary_id} ({exc})")
+                continue
+            try:
+                raw = base64.b64decode(binary.get("data", ""))
+            except Exception as exc:
+                logger.warning(f"Binary {binary_id} data did not decode as base64 ({exc})")
+                continue
+            text = raw.decode("utf-8", errors="replace")
+            if content_type == "text/html":
+                text = _strip_html(text)
+            notes.append({
+                "document_reference_id": ref.get("id"),
+                "content_type": content_type,
+                "note_date": ref.get("date"),
+                "text": text,
+            })
+    return notes
+
+
+def _deterministic_extraction_id(document_reference_id: str, clinic_id: str) -> str:
+    """Same deterministic-ID rationale as ve_orchestrator/ids.py — re-running
+    the same note through the DGX pipeline (e.g. after a bug fix) upserts the
+    same row instead of creating a duplicate."""
+    raw = f"extraction:{document_reference_id}:{clinic_id}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+def upsert_clinical_extraction(
+    patient_id: str, clinic_id: str, document_reference_id: str, note_date,
+    diagnoses: list, medications: list, procedures: list,
+    follow_up_recommendations: list, clinical_risks: list,
+    safety_check_passed: bool, validation_flags: list,
+) -> str:
+    """Writes Task 2's structured extraction to Postgres on ve_connect's
+    behalf. Exists so the DGX-side ve_clinical_intel service never needs a
+    direct database connection — only HTTP calls to ve_connect (see
+    PROJECT_STATUS.md Part A: the DGX has no route to raw Postgres, and no
+    root access there to set up one via a VPN's real network interface;
+    routing this write through ve_connect's existing HTTP surface, same as
+    the clinical-notes read, sidesteps that entirely)."""
+    extraction_id = _deterministic_extraction_id(document_reference_id, clinic_id)
+    conn = _db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO clinical_extractions
+              (extraction_id, patient_id, clinic_id, document_reference_id, note_date,
+               diagnoses, medications, procedures, follow_up_recommendations, clinical_risks,
+               safety_check_passed, validation_flags)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (extraction_id) DO UPDATE SET
+              diagnoses=EXCLUDED.diagnoses, medications=EXCLUDED.medications,
+              procedures=EXCLUDED.procedures,
+              follow_up_recommendations=EXCLUDED.follow_up_recommendations,
+              clinical_risks=EXCLUDED.clinical_risks,
+              safety_check_passed=EXCLUDED.safety_check_passed,
+              validation_flags=EXCLUDED.validation_flags,
+              extracted_at=now()
+        """, (
+            extraction_id, patient_id, clinic_id, document_reference_id, note_date,
+            json.dumps(diagnoses), json.dumps(medications), json.dumps(procedures),
+            json.dumps(follow_up_recommendations), json.dumps(clinical_risks),
+            safety_check_passed, json.dumps(validation_flags),
+        ))
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+    return extraction_id
 
 
 def _resolve_and_upsert(conn, pid: str, patient: dict | None = None) -> None:

@@ -655,6 +655,55 @@ def message_detail(request: Request, wa_message_id: str):
     )
 
 
+@app.get("/clinical-summaries")
+def clinical_summaries(request: Request, q: str = "", limit: int = 100):
+    """Task 2 (MedGemma + NemoGuard clinical note intelligence). Only
+    structured extraction output is ever stored (see
+    infra/migrations/014_clinical_extractions.sql) — no raw clinical note
+    text exists anywhere in this database, per the retention decision in
+    PROJECT_STATUS.md. validation_flags are always shown, never hidden,
+    same "honest gap" pattern as /models' insufficient_data states —
+    the presence of flags means a human should double-check that row, not
+    that anything failed silently."""
+    conditions = ["clinic_id=%s"]
+    params = [CLINIC_ID]
+    if q:
+        conditions.append("patient_id ILIKE %s")
+        params.append(f"%{q}%")
+    params.append(clamp_limit(limit))
+    rows = query(
+        f"""
+        SELECT extraction_id, patient_id, document_reference_id, note_date,
+               diagnoses, medications, procedures, follow_up_recommendations,
+               clinical_risks, safety_check_passed, validation_flags, extracted_at
+        FROM clinical_extractions
+        WHERE {' AND '.join(conditions)}
+        ORDER BY extracted_at DESC LIMIT %s
+        """,
+        tuple(params),
+    )
+    summary = one(
+        """
+        SELECT COUNT(*) total,
+          COUNT(*) FILTER (WHERE validation_flags IS NOT NULL AND jsonb_array_length(validation_flags) > 0) flagged,
+          COUNT(DISTINCT patient_id) patients
+        FROM clinical_extractions WHERE clinic_id=%s
+        """,
+        (CLINIC_ID,),
+    )
+    return render(
+        request, "list.html", active="clinical-summaries", title="Clinical summaries",
+        subtitle="Structured extractions from clinical notes (MedGemma + NemoGuard) — no raw note text is ever stored.",
+        rows=rows, summary=summary, filters={"q": q}, filter_kind="clinical-summaries",
+        columns=[
+            ("patient_id", "Patient", "text"), ("diagnoses", "Diagnoses", "list"),
+            ("medications", "Medications", "list"), ("procedures", "Procedures", "list"),
+            ("follow_up_recommendations", "Follow-up", "list"), ("clinical_risks", "Risks", "list"),
+            ("validation_flags", "Quality", "flags"), ("extracted_at", "Extracted", "datetime"),
+        ],
+    )
+
+
 @app.get("/bookings")
 def bookings(request: Request, q: str = "", status: str = "all", limit: int = 100):
     conditions = ["b.clinic_id=%s", _real_or_unattributed_campaign("b")]

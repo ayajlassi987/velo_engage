@@ -29,6 +29,8 @@ dev = [
     "httpx>=0.28.1",
     "nats-py>=2.15.0",
     "temporalio>=1.29.0",
+    "fastapi>=0.125.0",
+    "python-dotenv>=1.2.2",
 ]
 
 [tool.uv.workspace]
@@ -39,8 +41,9 @@ members = [
     "services/ve_orchestrator",
     "services/ve_reach",
     "services/ve_connect",
+    "services/ve_clinical_intel",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "ml", "services/ve_connect/src", "services/ve_orchestrator/src", "services/ve_console/src", "services/ve_reach/src"]
+pythonpath = [".", "ml", "services/ve_connect/src", "services/ve_orchestrator/src", "services/ve_console/src", "services/ve_reach/src", "services/ve_clinical_intel/src"]

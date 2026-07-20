@@ -418,3 +418,36 @@ Extends Phase 0's scaffolding rather than restarting it. **72 tests, all passing
 
 ### 6.6 Roadmap Tasks 6–9 status: complete
 All four phases of the plan (`graceful-squishing-moore.md`) are done and verified live — nothing deferred except the items explicitly marked out-of-scope per-phase above (all genuinely gated on real outcome data or infrastructure that doesn't exist yet, not skipped for convenience). The daily pipeline, all 9 console pages, and the full test suite were re-verified working after every phase, not just at the end.
+
+---
+
+## 7. Task 2 — Clinical Note Intelligence (MedGemma + NemoGuard)
+
+With the user's team's DGX Spark (GB10 Grace Blackwell, 128GB unified memory) available, Parts B–E of Task 2 are built and verified live; Part A (the DGX-side model server + NemoGuard NIM + cross-machine connectivity) is a runbook for the user to complete on that machine — I have no direct tool access to it.
+
+**Scope correction found early**: the existing `ve_reach/llm_personalization_stub.py` is for a *different* feature (cosmetic WhatsApp copy rewriting), not clinical note extraction — no code reuse there; this was genuinely new work.
+
+### 7.1 Part B — Pulling real clinical notes from Epic (fully verified live)
+- Added `user/DocumentReference.read` and `user/Binary.read` to `EPIC_SCOPES`; required a real re-authorization (`/auth/login`) since Epic doesn't retroactively add scopes to a refreshed token — confirmed live: the old token's scope list didn't include `Binary.read`, the new one does.
+- **Found and fixed a real, unrelated pre-existing bug while checking token status**: `/auth/status` compared `datetime.utcnow()` (naive) against a timezone-aware Postgres timestamp, crashing with a 500. Same class of bug already fixed elsewhere in this file for `get_valid_token()`, just missed here.
+- **`_pull_clinical_notes()`** (`ve_connect/adapter.py`), exposed via new `GET /patients/{id}/clinical-notes`. Two real findings from testing against live Epic sandbox data (not assumed):
+  1. Epic's `DocumentReference` search returns far more than clinical notes — HIPAA privacy notices, advance directives, and other administrative documents with no real content are mixed in. Added a category filter (`US Core 'clinical-note'` code) to exclude them.
+  2. The v1 assumption that notes would be `text/plain`/XML was wrong — Elijah Davis's real "Progress Notes" document came back as `text/html` (and `text/rtf`, left out of scope — no RTF parser). Added HTML tag-stripping (dependency-free) for clean LLM input.
+- **Verified end-to-end with real data**: pulled Elijah Davis's actual clinical note — `"Arm should heal quickly."` — matching his previously-confirmed fracture diagnosis (S42.309A). Raw note text is never written to disk anywhere in `ve_connect`; only returned transiently in the HTTP response for the DGX-side service to consume.
+
+### 7.2 Part D — `clinical_extractions` schema (done)
+`infra/migrations/014_clinical_extractions.sql`, applied live. No raw note text column at all — only structured JSONB output — per an explicit retention decision made with the user: this codebase has no encryption-at-rest or audit-logging for PHI, so raw note text is discarded by the extraction service before any row is written.
+
+### 7.3 Part C — New service `services/ve_clinical_intel/` (built, unit tested, not yet live-wired)
+Deliberately **not** part of `docker-compose.dev.yml` — runs on the DGX (GPU-local calls to MedGemma/NemoGuard), reaching back to this machine's Postgres and `ve_connect` over the network.
+- **`medgemma_client.py`**: real protocol confirmed from the team's own `medgemma_server/example_client.py`, not guessed — SSE streaming (`data: {"type":"token",...}` per token, `data: [DONE]` terminator), not OpenAI-compatible JSON despite the `/v1/chat/completions` path. Accumulates tokens, parses the joined text as JSON.
+- **`nemoguard_client.py`**: protocol NOT confirmed against a live example (none was provided) — built defensively against NVIDIA's documented NIM pattern, explicitly fail-safe (any error, timeout, or ambiguous response **blocks**, never fails open). Flagged as the most likely thing to need adjustment once tested against the real deployed NIM.
+- **`validation.py`**: the actual hallucination-mitigation mechanism for this task — NemoGuard checks content *safety* (toxicity), not factual accuracy of a medical extraction, which is a distinct concern documented directly in both modules' docstrings. Non-LLM checks: required-key defaults, type checks, ICD-10-shape flagging — never drops data, only flags it for human review.
+- **`main.py`**: per-note orchestration (safety-gate → extract → validate → upsert), deterministic extraction IDs (same rationale as `ve_orchestrator/ids.py`), note text and raw MedGemma output never persisted or returned. **Bug caught and fixed during implementation**: the per-note try/except originally didn't cover `note["text"]` access — a single malformed note (missing the `text` key) would have crashed processing for an entire patient's remaining notes rather than being counted as one error and continuing.
+- **22 new unit tests**, all passing, all mocked at the HTTP boundary (SSE parsing, fail-safe NemoGuard behavior, per-note error isolation, deterministic IDs) — zero dependency on a real DGX for this layer of verification.
+
+### 7.4 Part E — `/clinical-summaries` console page (done, verified live)
+Follows the existing `list.html`/`data_table` pattern used by `/opportunities`/`/campaigns`/`/bookings`. Added two new generic column kinds to the shared `data_table` macro (`list` for JSONB string arrays, `flags` for validation-flag badges) — confirmed via direct render tests that this shared-macro change didn't regress any of the other pages that use it. `validation_flags` are always shown, never hidden, matching `/models`' "honest gap state" pattern. Tested both with a temporary real-shaped row (confirmed correct rendering, then removed — the table stays honestly empty until the real DGX pipeline produces genuine extractions) and the true empty state.
+
+### 7.5 Part A — Remaining (user-side, DGX Spark)
+Not yet done — needs the user to, on the DGX: confirm the real `model_server` port (guide showed 9000, the example client defaults to 8080 — unreconciled), stand up the NemoGuard NIM (using the NGC key already provided) unless the team already has one running, and confirm bidirectional network reachability between the DGX and this machine (DGX → this machine's Postgres:5432 and `ve_connect`:8003 for data; this machine → DGX's model server/NemoGuard ports for testing). `services/ve_clinical_intel/.env.example` documents exactly what to fill in once these are confirmed. Nothing in Parts B–E depends on Part A being done first — all verified independently, ready to wire up as soon as Part A confirms real endpoints.
