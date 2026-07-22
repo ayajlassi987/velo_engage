@@ -112,6 +112,7 @@ SELECT
     COALESCE(out.booked, false) AS booked,
     COALESCE(out.attended, false) AS attended,
     out.recorded_at AS outcome_recorded_at,
+    out.booked_at,
 
     COALESCE(rev.revenue_amount, 0) AS revenue_amount,
 

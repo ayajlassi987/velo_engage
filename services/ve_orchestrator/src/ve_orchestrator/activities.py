@@ -481,6 +481,20 @@ async def rank_and_assign_holdout(
         activity.logger.warning(f"Uplift scoring failed ({e}) — treating everyone as persuadable")
         uplift_scores = [1.0 for _ in rows]  # no discount applied
 
+    try:
+        from ml.registry.survival_scorer import score_opportunities_batch as score_survival_batch
+        # Same feature shape as the propensity model — reuse those rows.
+        # Informational only for now: predicted days-to-book is persisted
+        # and monitored but not folded into expected_value below — blending
+        # a duration estimate into a per-contact EV formula needs its own
+        # deliberate mathematical treatment (e.g. discounting later
+        # conversions), a separate design decision from training the model.
+        survival_scores = score_survival_batch(propensity_feature_rows)
+        activity.logger.info(f"ML scored {len(survival_scores)} patients (predicted days-to-book)")
+    except Exception as e:
+        activity.logger.warning(f"Survival/timing scoring failed ({e}) — leaving unscored")
+        survival_scores = [None for _ in rows]
+
     to_insert = []
     for i, row in enumerate(rows):
         opp_id       = row[0]
@@ -492,6 +506,7 @@ async def rank_and_assign_holdout(
         propensity_score = propensity_scores[i]
         value_score  = value_scores[i]
         uplift_score = uplift_scores[i]
+        survival_score = survival_scores[i]
         arm          = "holdout" if rng.random() < HOLDOUT_RATE else "treated"
         campaign_id  = deterministic_campaign_id(opp_id, today)
         # EV(patient) = appropriateness/urgency (priority_score) x
@@ -505,10 +520,13 @@ async def rank_and_assign_holdout(
         to_insert.append((
             campaign_id, opp_id, pid, clinic_id, family, arm,
             noshow_score, propensity_score, value_score, uplift_score, expected_value,
+            survival_score,
         ))
 
     # Highest expected value dispatched first once DISPATCH_LIMIT truncates.
-    to_insert.sort(key=lambda r: r[-1], reverse=True)
+    # expected_value is second-to-last now that survival_score (informational
+    # only, not part of this ranking) is appended after it.
+    to_insert.sort(key=lambda r: r[-2], reverse=True)
 
     # One batched upsert instead of one INSERT per campaign — same
     # ON_CONFLICT/EXCLUDED semantics, applied once across every row (see the
@@ -522,8 +540,9 @@ async def rank_and_assign_holdout(
             json.dumps({"patient_first_name": pid}),
             round(noshow_score, 4), round(propensity_score, 4),
             round(value_score, 4), round(uplift_score, 4), round(ev, 4),
+            round(survival_score, 4) if survival_score is not None else None,
         )
-        for campaign_id, opp_id, pid, clinic_id, family, arm, noshow_score, propensity_score, value_score, uplift_score, ev in to_insert
+        for campaign_id, opp_id, pid, clinic_id, family, arm, noshow_score, propensity_score, value_score, uplift_score, ev, survival_score in to_insert
     ]
     if insert_rows:
         execute_values(cur, """
@@ -531,15 +550,16 @@ async def rank_and_assign_holdout(
               (campaign_id, opportunity_id, patient_id, clinic_id, family,
                channel, treatment_arm, template_id, template_vars,
                noshow_score, booking_propensity_score, value_score,
-               uplift_score, expected_value_score)
+               uplift_score, expected_value_score, survival_score)
             VALUES %s
             ON CONFLICT (campaign_id) DO UPDATE SET
               noshow_score=EXCLUDED.noshow_score,
               booking_propensity_score=EXCLUDED.booking_propensity_score,
               value_score=EXCLUDED.value_score,
               uplift_score=EXCLUDED.uplift_score,
-              expected_value_score=EXCLUDED.expected_value_score;
-        """, insert_rows, template="(%s,%s,%s,%s,%s,'whatsapp',%s,%s,%s,%s,%s,%s,%s,%s)")
+              expected_value_score=EXCLUDED.expected_value_score,
+              survival_score=EXCLUDED.survival_score;
+        """, insert_rows, template="(%s,%s,%s,%s,%s,'whatsapp',%s,%s,%s,%s,%s,%s,%s,%s,%s)")
 
     campaign_ids = [row[0] for row in to_insert]
 

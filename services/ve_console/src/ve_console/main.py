@@ -847,6 +847,7 @@ REGISTERED_MODELS = [
     {"model_name": "velo_engage_value_amount", "label": "Value (amount)", "score_column": "value_score"},
     {"model_name": "velo_engage_uplift_treated", "label": "Uplift (treated arm)", "score_column": "uplift_score"},
     {"model_name": "velo_engage_uplift_control", "label": "Uplift (control arm)", "score_column": "uplift_score"},
+    {"model_name": "velo_engage_survival", "label": "Survival / time-to-need", "score_column": "survival_score"},
     {"model_name": "ve_intent_v1", "label": "Intent classifier", "score_column": None},
 ]
 

@@ -42,7 +42,11 @@ def _fetch_clinical_notes(patient_id: str) -> list[dict]:
             "VE_CONNECT_URL is not set — see PROJECT_STATUS.md Part A for the "
             "main machine's reachable address."
         )
-    with httpx.Client(timeout=30.0) as client:
+    # ve_connect fetches each DocumentReference's Binary sequentially against
+    # the real Epic sandbox API, over the network (Tailscale) — patients with
+    # more history can take a while. 30s proved too tight for a 74-year-old
+    # patient with a longer record than the one this was first tested against.
+    with httpx.Client(timeout=90.0) as client:
         response = client.get(f"{VE_CONNECT_URL}/patients/{patient_id}/clinical-notes")
         response.raise_for_status()
         return response.json()["notes"]

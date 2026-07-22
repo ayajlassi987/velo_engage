@@ -43,20 +43,40 @@ def is_campaign_dispatched(campaign_id: str) -> bool:
 
 
 def upsert_outcome(campaign_id: str, patient_id: str, **fields):
+    """This function is called repeatedly as a campaign progresses through
+    stages (delivered, then read, then replied, ...) — each call only sets
+    the flags true for stages that have actually happened *so far*. The
+    per-stage _at columns use CASE WHEN on the INSERT side and COALESCE on
+    the UPDATE side so each one is only ever set once, the first time that
+    stage becomes true — a naive `= now()` on every call would clobber
+    earlier stages' real timing with whatever the latest call happened to
+    be, which is exactly the bug that made duration/timing analysis
+    impossible before this was added (see infra/migrations/015)."""
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO outcomes
-          (campaign_id, patient_id, delivered, read, replied, booked, attended)
+          (campaign_id, patient_id, delivered, read, replied, booked, attended,
+           delivered_at, read_at, replied_at, booked_at, attended_at)
         VALUES
           (%(campaign_id)s, %(patient_id)s, %(delivered)s, %(read)s,
-           %(replied)s, %(booked)s, %(attended)s)
+           %(replied)s, %(booked)s, %(attended)s,
+           CASE WHEN %(delivered)s THEN now() END,
+           CASE WHEN %(read)s THEN now() END,
+           CASE WHEN %(replied)s THEN now() END,
+           CASE WHEN %(booked)s THEN now() END,
+           CASE WHEN %(attended)s THEN now() END)
         ON CONFLICT (campaign_id) DO UPDATE
           SET delivered  = outcomes.delivered OR EXCLUDED.delivered,
               read       = outcomes.read OR EXCLUDED.read,
               replied    = outcomes.replied OR EXCLUDED.replied,
               booked     = outcomes.booked OR EXCLUDED.booked,
               attended   = outcomes.attended OR EXCLUDED.attended,
+              delivered_at = COALESCE(outcomes.delivered_at, EXCLUDED.delivered_at),
+              read_at      = COALESCE(outcomes.read_at, EXCLUDED.read_at),
+              replied_at   = COALESCE(outcomes.replied_at, EXCLUDED.replied_at),
+              booked_at    = COALESCE(outcomes.booked_at, EXCLUDED.booked_at),
+              attended_at  = COALESCE(outcomes.attended_at, EXCLUDED.attended_at),
               recorded_at = now()
     """, {
         "campaign_id": campaign_id,
@@ -365,13 +385,14 @@ def save_inbound_message(
     if inserted and campaign_id:
         cur.execute(
             """
-            INSERT INTO outcomes (campaign_id, patient_id, replied)
-            VALUES (%s,%s,TRUE)
+            INSERT INTO outcomes (campaign_id, patient_id, replied, replied_at)
+            VALUES (%s,%s,TRUE,COALESCE(%s,now()))
             ON CONFLICT (campaign_id) DO UPDATE SET
               replied=TRUE,
+              replied_at=COALESCE(outcomes.replied_at, EXCLUDED.replied_at),
               recorded_at=now()
             """,
-            (campaign_id, patient_id),
+            (campaign_id, patient_id, received_at),
         )
     conn.commit()
     cur.close()

@@ -42,6 +42,15 @@ N_PATIENTS = 20000
 HOLDOUT_RATE = 0.15
 random.seed(42)
 
+# Separate RNG stream for the stage-timing simulation added later, so
+# re-running this script to backfill timestamps draws its own random
+# numbers without shifting the shared `random` module's stream — which
+# would otherwise silently change every existing patient's delivered/read/
+# replied/booked/attended outcome (all driven by weighted_bool() below)
+# on top of the seed=42 reproducibility guarantee this file already
+# documents and depends on.
+TIMING_RNG = random.Random(1337)
+
 
 FIRST_NAMES = ["Sara", "Omar", "Noura", "Khalid", "Fatima", "Ahmed", "Hind", "Reem", "Yousef", "Maha"]
 LAST_NAMES = ["Alharbi", "Alotaibi", "Alqahtani", "Aldosari", "Alzahrani", "Alshammari"]
@@ -72,6 +81,21 @@ def weighted_bool(prob: float) -> bool:
 
 def sigmoid(x: float) -> float:
     return 1 / (1 + math.exp(-x))
+
+
+def stage_delay(mean_hours: float) -> timedelta:
+    """Exponential waiting-time simulation for how long a stage transition
+    takes (delivered->read->replied->booked) — a realistic shape for "time
+    until an event happens" (memoryless, most delays short, a long tail of
+    slow responders), unlike a flat/fixed offset. Callers scale mean_hours
+    by engagement_score so more-engaged simulated patients realistically
+    respond faster, giving the resulting timestamps actual learnable
+    variance instead of just noise (see infra/migrations/015 — this was a
+    real, structural gap: outcomes previously had only one recorded_at
+    shared by every stage, so no timing/duration model had anything to
+    learn from). Uses TIMING_RNG, not the shared random module — see its
+    definition for why."""
+    return timedelta(hours=TIMING_RNG.expovariate(1 / max(0.05, mean_hours)))
 
 
 def main():
@@ -219,9 +243,24 @@ def main():
             replied = False
             booked = False
             attended = False
+            delivered_at = None
+            read_at = None
+            replied_at = None
+            booked_at = None
+            attended_at = None
+            appointment_date = None
+            # Same instant used as the baseline for both arms' timing below
+            # AND for campaigns.created_at's implicit now() default, so
+            # booked_at is always computed relative to a consistent zero
+            # point regardless of what time of day this script happens to
+            # run — using date.today()'s midnight instead would make
+            # holdout's booked_at occasionally land *before* created_at
+            # when the random delay is small and the script runs late in
+            # the day, producing a nonsensical negative duration.
+            opportunity_triggered_at = datetime.utcnow()
 
             if treatment_arm == "treated":
-              dispatched_at = datetime.utcnow()
+              dispatched_at = opportunity_triggered_at
 
               engagement_score = -1.2
 
@@ -275,10 +314,37 @@ def main():
               booked = replied and weighted_bool(book_prob)
               attended = booked and weighted_bool(0.82)
 
+              # Per-stage timestamps: exponential waiting times whose mean
+              # scales inversely with engagement_score, so more-engaged
+              # simulated patients realistically respond and book faster —
+              # real, learnable variance for a timing model to train on,
+              # instead of every stage sharing one recorded_at=now() (see
+              # infra/migrations/015 and stage_delay()'s docstring).
+              if delivered:
+                  delivered_at = dispatched_at + stage_delay(0.2)
+              if read:
+                  read_at = delivered_at + stage_delay(max(0.5, 8 - engagement_score * 2))
+              if replied:
+                  replied_at = read_at + stage_delay(max(1, 12 - engagement_score * 2))
+              if booked:
+                  booking_mean_hours = max(1, 14 - engagement_score * 3) * 24
+                  booked_at = replied_at + stage_delay(booking_mean_hours)
+                  appointment_date = booked_at + timedelta(days=TIMING_RNG.uniform(3, 21))
+              if attended:
+                  attended_at = appointment_date
+
             else:
-                # holdout can still book naturally, but no message is sent
+                # holdout can still book naturally, but no message is sent,
+                # so there's no engagement-driven timing signal for this arm
+                # — a flat baseline delay from today (the opportunity's
+                # trigger day) stands in instead.
                 booked = weighted_bool(0.04)
                 attended = booked and weighted_bool(0.75)
+                if booked:
+                    booked_at = opportunity_triggered_at + stage_delay(20 * 24)
+                    appointment_date = booked_at + timedelta(days=TIMING_RNG.uniform(3, 21))
+                if attended:
+                    attended_at = appointment_date
 
             cur.execute("""
                 INSERT INTO campaigns
@@ -297,9 +363,6 @@ def main():
             revenue_amount = 0
             if booked:
                 booking_id = f"syn_booking_{campaign_id}"
-                appointment_date = datetime.combine(
-                    today + timedelta(days=7), datetime.min.time()
-                ).replace(hour=9)
                 booking_status = "attended" if attended else "booked"
                 cur.execute("""
                     INSERT INTO bookings
@@ -351,8 +414,9 @@ def main():
             cur.execute("""
                 INSERT INTO outcomes
                   (campaign_id, patient_id, delivered, read, replied,
-                   booked, attended, revenue, recorded_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,now())
+                   booked, attended, revenue, recorded_at,
+                   delivered_at, read_at, replied_at, booked_at, attended_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,now(),%s,%s,%s,%s,%s)
                 ON CONFLICT (campaign_id) DO UPDATE
                   SET delivered = EXCLUDED.delivered,
                       read = EXCLUDED.read,
@@ -360,10 +424,16 @@ def main():
                       booked = EXCLUDED.booked,
                       attended = EXCLUDED.attended,
                       revenue = EXCLUDED.revenue,
-                      recorded_at = now();
+                      recorded_at = now(),
+                      delivered_at = EXCLUDED.delivered_at,
+                      read_at = EXCLUDED.read_at,
+                      replied_at = EXCLUDED.replied_at,
+                      booked_at = EXCLUDED.booked_at,
+                      attended_at = EXCLUDED.attended_at;
             """, (
                 campaign_id, patient_id, delivered, read,
-                replied, booked, attended, revenue_amount
+                replied, booked, attended, revenue_amount,
+                delivered_at, read_at, replied_at, booked_at, attended_at,
             ))
 
             if treatment_arm == "treated":

@@ -140,16 +140,29 @@ def record_booking(event_type: str, event_id: str, data: dict, occurred_at: date
         )
         attributed_campaign = cur.fetchone()[0]
         if attributed_campaign:
+            # occurred_at is the real event time reported by the source system
+            # (not now()) — using it here, rather than the time this handler
+            # happened to run, means booked_at/attended_at reflect when the
+            # patient actually booked/attended, which is what any
+            # duration/timing analysis needs (see infra/migrations/015).
+            # COALESCE on conflict preserves whichever timestamp was set
+            # first — a later "attended" call must not overwrite an earlier
+            # real booked_at with its own occurred_at.
             cur.execute(
                 """
-                INSERT INTO outcomes (campaign_id, patient_id, booked, attended)
-                VALUES (%s,%s,TRUE,%s)
+                INSERT INTO outcomes (campaign_id, patient_id, booked, attended, booked_at, attended_at)
+                VALUES (%s,%s,TRUE,%s,%s,%s)
                 ON CONFLICT (campaign_id) DO UPDATE SET
                   booked=TRUE,
                   attended=outcomes.attended OR EXCLUDED.attended,
+                  booked_at=COALESCE(outcomes.booked_at, EXCLUDED.booked_at),
+                  attended_at=COALESCE(outcomes.attended_at, EXCLUDED.attended_at),
                   recorded_at=now()
                 """,
-                (attributed_campaign, data["patient_id"], status == "attended"),
+                (
+                    attributed_campaign, data["patient_id"], status == "attended",
+                    occurred_at, occurred_at if status == "attended" else None,
+                ),
             )
     logger.info("%s stored booking=%s campaign=%s", event_type, data["booking_id"], campaign_id)
 
