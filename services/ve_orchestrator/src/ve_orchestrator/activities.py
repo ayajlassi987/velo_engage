@@ -53,6 +53,26 @@ MAX_CONTACTS_PER_WINDOW = int(os.getenv("MAX_CONTACTS_PER_WINDOW", 3))
 WORKFLOW_BATCH_LIMIT = int(os.environ["WORKFLOW_BATCH_LIMIT"]) if os.getenv("WORKFLOW_BATCH_LIMIT") else None
 DISPATCH_LIMIT       = int(os.environ["DISPATCH_LIMIT"]) if os.getenv("DISPATCH_LIMIT") else None
 
+# Next-Best-Action unification (master spec's "next-event engine", scoped
+# down to what real data supports — see PROJECT_STATUS.md): folds the
+# survival model's predicted days-to-book into ranking, closing the gap
+# rank_and_assign_holdout's own comment used to flag as deliberately
+# deferred. Hyperbolic time discount (bounded, gentle — common in
+# behavioral-economics time-preference modeling): at 0 predicted days the
+# factor is 1.0, at TIMING_HALF_LIFE_DAYS it's 0.5, asymptotically
+# approaching 0 for very long predictions, never negative or unbounded.
+# Rewards patients predicted to convert *quickly once contacted* — a real
+# capacity-efficiency signal given DISPATCH_LIMIT caps contacts per day —
+# not a claim about urgency of underlying clinical need, which this model
+# was never trained to predict.
+TIMING_HALF_LIFE_DAYS = 30.0
+
+
+def _timing_factor(predicted_days: float | None) -> float:
+    if predicted_days is None or predicted_days < 0:
+        return 1.0  # survival scoring unavailable/unscored — neutral, same discipline as uplift's fallback
+    return 1.0 / (1.0 + predicted_days / TIMING_HALF_LIFE_DAYS)
+
 
 def _db():
     return psycopg2.connect(
@@ -97,22 +117,50 @@ async def pull_epic_data() -> dict:
         return {"status": "failed", "error": str(exc)}
 
 
+# ── Activity 0.5 ──────────────────────────────────────────────────────────────
+# Recomputes the no-show model's historical-aggregate features from real
+# bookings/outcomes/message history (see historical_features.py) — runs right
+# before evaluate_rules reads patient_features, so evaluate_rules and the
+# scoring step in rank_and_assign_holdout both see the freshest values in the
+# same run rather than racing feature_store's Redis cache.
+@activity.defn
+async def refresh_historical_features(clinic_id: str | None = None) -> int:
+    from ve_orchestrator.historical_features import refresh_historical_features as _refresh
+
+    clinic_id = clinic_id or CLINIC_ID
+    conn = _db()
+    try:
+        cur = conn.cursor()
+        updated = _refresh(cur, clinic_id)
+        conn.commit()
+        activity.logger.info(f"refresh_historical_features: {updated} patient_features rows updated")
+        return updated
+    finally:
+        conn.close()
+
+
 # ── Activity 1 ────────────────────────────────────────────────────────────────
 # Evaluates every enabled family in policies/opportunities/*.yml (via
 # policy_engine.py) against the full patient_features row for each patient.
 # Returns: list of opportunity_ids (strings only — tiny payload)
 @activity.defn
-async def evaluate_rules() -> list[str]:
+async def evaluate_rules(clinic_id: str | None = None) -> list[str]:
     from ve_orchestrator.ids import deterministic_opportunity_id
-    from ve_orchestrator.policy_engine import active_policies, evaluate_policy
+    from ve_orchestrator.policy_engine import active_policies, evaluate_policy, policy_for_family
 
     from ve_orchestrator.feature_store import fetch_patient_features
+
+    # None (no schedule argument passed) falls back to the original
+    # single-clinic default — see PROJECT_STATUS.md's multi-clinic
+    # productization section. Real multi-clinic schedules always pass this
+    # explicitly (see schedules.py).
+    clinic_id = clinic_id or CLINIC_ID
 
     conn  = _db()
     cur   = conn.cursor()
     today = date.today()
 
-    rows = fetch_patient_features(cur, CLINIC_ID)
+    rows = fetch_patient_features(cur, clinic_id)
 
     policies = active_policies()
 
@@ -158,13 +206,60 @@ async def evaluate_rules() -> list[str]:
             if evidence is None:
                 continue
             rule = policy["rule"]
-            opp_id = deterministic_opportunity_id(pid, CLINIC_ID, rule["id"], today)
+            opp_id = deterministic_opportunity_id(pid, clinic_id, rule["id"], today)
             insert_rows.append((
-                opp_id, pid, CLINIC_ID, policy["family"],
+                opp_id, pid, clinic_id, policy["family"],
                 rule["consent_class"], rule["priority"],
                 rule["id"], json.dumps(evidence),
             ))
             matches.append((rule["priority"], policy["family"], opp_id))
+
+    # Lookalike / cross-sell (family D's [AI] method — see
+    # policies/opportunities/D.yml, tagged methods: [R, D, AI], and
+    # ml/training/train_lookalike_model.py). Unlike every rule above, this
+    # doesn't score something a policy already matched — it generates a
+    # candidate opportunity the rule engine would never find on its own:
+    # a patient who looks like others that responded well to a family
+    # they've personally never engaged with. Tagged as family D itself
+    # (reusing D's own consent_class/priority from its YAML rule) with a
+    # distinct rule_name, so it's evidence for the same "cross-specialty
+    # gap" concept the rule-based check represents, not a separate family.
+    try:
+        from ml.registry.lookalike_scorer import recommend_families_batch
+
+        cur.execute("""
+            SELECT DISTINCT c.patient_id, c.family
+            FROM campaigns c
+            JOIN outcomes out ON c.campaign_id = out.campaign_id
+            WHERE c.clinic_id = %s AND out.booked = true
+        """, (clinic_id,))
+        known_families_by_patient: dict[str, list[str]] = {}
+        for patient_id, family in cur.fetchall():
+            known_families_by_patient.setdefault(patient_id, []).append(family)
+
+        patient_ids = [pid for pid, _ in rows]
+        known_families_list = [known_families_by_patient.get(pid, []) for pid in patient_ids]
+        recommendations = recommend_families_batch(known_families_list)
+
+        d_policy = policy_for_family("D")
+        d_rule = d_policy["rule"]
+        lookalike_matches = 0
+        for pid, recommendation in zip(patient_ids, recommendations):
+            if recommendation is None:
+                continue
+            recommended_family, score = recommendation
+            opp_id = deterministic_opportunity_id(pid, clinic_id, "lookalike_cross_specialty", today)
+            evidence = {"recommended_family": recommended_family, "affinity_score": score, "method": "cooccurrence_heuristic"}
+            insert_rows.append((
+                opp_id, pid, clinic_id, "D",
+                d_rule["consent_class"], d_rule["priority"],
+                "lookalike_cross_specialty", json.dumps(evidence),
+            ))
+            matches.append((d_rule["priority"], "D", opp_id))
+            lookalike_matches += 1
+        activity.logger.info(f"Lookalike scored {len(patient_ids)} patients, {lookalike_matches} new cross-specialty recommendations above threshold")
+    except Exception as exc:
+        activity.logger.warning(f"Lookalike scoring failed ({exc}) — skipped, rule-based families unaffected")
 
     if insert_rows:
         # One round trip instead of one INSERT per match — at 7 real patients
@@ -484,15 +579,16 @@ async def rank_and_assign_holdout(
     try:
         from ml.registry.survival_scorer import score_opportunities_batch as score_survival_batch
         # Same feature shape as the propensity model — reuse those rows.
-        # Informational only for now: predicted days-to-book is persisted
-        # and monitored but not folded into expected_value below — blending
-        # a duration estimate into a per-contact EV formula needs its own
-        # deliberate mathematical treatment (e.g. discounting later
-        # conversions), a separate design decision from training the model.
+        # Now folded into expected_value via _timing_factor (see its own
+        # docstring) — closes the gap this comment used to flag as
+        # deliberately deferred (master spec's "next-event engine",
+        # descoped to a unification layer over the models already built —
+        # see PROJECT_STATUS.md for why a genuine new sequence model isn't
+        # trainable on this data yet).
         survival_scores = score_survival_batch(propensity_feature_rows)
         activity.logger.info(f"ML scored {len(survival_scores)} patients (predicted days-to-book)")
     except Exception as e:
-        activity.logger.warning(f"Survival/timing scoring failed ({e}) — leaving unscored")
+        activity.logger.warning(f"Survival/timing scoring failed ({e}) — timing factor neutral (1.0)")
         survival_scores = [None for _ in rows]
 
     to_insert = []
@@ -514,9 +610,26 @@ async def rank_and_assign_holdout(
         # (value) — the master spec's ranking formula, minus contact/incentive
         # cost terms (not modeled) — then heavily discounted for patients the
         # uplift model estimates would book anyway or are unmoved by contact
-        # (uplift <= 0), so outreach capacity favors genuine persuadables.
+        # (uplift <= 0), so outreach capacity favors genuine persuadables —
+        # adjusted by _timing_factor (predicted days-to-book), so patients
+        # expected to convert faster once contacted are prioritized somewhat
+        # higher given DISPATCH_LIMIT caps how many contacts happen per day
+        # (see _timing_factor's docstring) — and finally by (1 - noshow_score)
+        # = P(will actually show up). This is the real, already-trained
+        # signal closest to "operational yield" (family P, master spec's
+        # price-elasticity item): no genuine price/discount-variation data
+        # exists anywhere in this schema to train real elasticity from (see
+        # PROJECT_STATUS.md), so rather than fabricate one, this uses a
+        # real proxy already computed for every campaign — a patient likely
+        # to book but also likely to no-show doesn't actually solve a
+        # scarce-slot yield problem. Applied universally, not just to
+        # family P: a wasted contact from a no-show is a real efficiency
+        # cost for any family, not something to special-case in the
+        # formula.
         persuadable_multiplier = 1.0 if uplift_score > 0 else 0.1
-        expected_value = priority * propensity_score * value_score * persuadable_multiplier
+        timing_factor = _timing_factor(survival_score)
+        show_probability = 1.0 - noshow_score
+        expected_value = priority * propensity_score * value_score * persuadable_multiplier * timing_factor * show_probability
         to_insert.append((
             campaign_id, opp_id, pid, clinic_id, family, arm,
             noshow_score, propensity_score, value_score, uplift_score, expected_value,
@@ -524,8 +637,9 @@ async def rank_and_assign_holdout(
         ))
 
     # Highest expected value dispatched first once DISPATCH_LIMIT truncates.
-    # expected_value is second-to-last now that survival_score (informational
-    # only, not part of this ranking) is appended after it.
+    # expected_value is second-to-last in the tuple — survival_score (now
+    # folded *into* expected_value via _timing_factor, but also stored in
+    # its own column for monitoring/drift) is appended after it.
     to_insert.sort(key=lambda r: r[-2], reverse=True)
 
     # One batched upsert instead of one INSERT per campaign — same

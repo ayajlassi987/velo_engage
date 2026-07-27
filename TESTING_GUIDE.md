@@ -26,7 +26,7 @@ All five should return JSON immediately. The `ngrok` service is supervised (`res
 
 ```bash
 docker exec ve_temporal temporal schedule trigger \
-  --address temporal:7233 --schedule-id daily-engagement-schedule
+  --address temporal:7233 --schedule-id daily-engagement-schedule-clinic_alnoor_001
 docker logs -f ve_orchestrator
 ```
 

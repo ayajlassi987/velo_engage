@@ -1,0 +1,31 @@
+version: 1
+family: I
+title: Predictive clinical risk / deterioration
+methods: [R]
+enabled: true
+rule:
+  id: predictive_clinical_risk
+  consent_class: clinical_recall
+  priority: 0.85
+  conditions:
+    all:
+      - any:
+          - {field: condition_codes, operator: contains_prefix, value: "E11"}
+          - {field: condition_codes, operator: contains_prefix, value: "I10"}
+          - {field: condition_codes, operator: contains_prefix, value: "I25"}
+          - {field: condition_codes, operator: contains_prefix, value: "I51"}
+          - {field: condition_codes, operator: contains_prefix, value: "J44"}
+          - {field: condition_codes, operator: contains_prefix, value: "J45"}
+      - {field: days_since_last_visit, operator: gt, value: 240}
+  evidence:
+    condition_codes: {feature: condition_codes}
+    days_since_last_visit: {feature: days_since_last_visit}
+delivery:
+  template:
+    name: velo_predictive_risk_en_v1
+    language: en_US
+    parameters: [{source: patient_name}, {source: clinic_name}]
+  session_text: "Hi {patient_name}, this is {clinic_name}. Given your health history, we'd like to schedule a check-up to review your care plan. Reply BOOK to arrange a review, or STOP to opt out."
+activation:
+  source_owner: care-gap service
+  required_features: [condition_codes, days_since_last_visit]

@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 
 import jwt
+import psycopg2
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -40,8 +41,11 @@ ISSUER_INTERNAL = os.getenv("KEYCLOAK_ISSUER_INTERNAL", "http://keycloak:8080/re
 CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "ve-console")
 CLIENT_SECRET = get_secret("keycloak", "client_secret", "KEYCLOAK_CLIENT_SECRET") or ""
 REDIRECT_URI = os.getenv("KEYCLOAK_REDIRECT_URI", "http://localhost:8002/auth/callback")
-CLINIC_NAME = os.getenv("CLINIC_NAME", "Al Noor Clinic")
 CONSOLE_BASE_URL = os.getenv("CONSOLE_BASE_URL", "http://localhost:8002")
+# Fallback only — see _resolve_clinic. Kept for the same reason main.py's
+# CLINIC_ID module constant existed before multi-clinic support: an
+# unmapped username shouldn't lock a user out entirely.
+_DEFAULT_CLINIC_ID = os.getenv("CLINIC_ID", "clinic_alnoor_001")
 
 _jwks_client = PyJWKClient(f"{ISSUER_INTERNAL}/protocol/openid-connect/certs")
 _templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -129,12 +133,45 @@ def login(request: Request, next: str = "/overview", logged_out: bool = False, e
         request=request,
         name="login.html",
         context={
-            "clinic_name": CLINIC_NAME,
             "authorize_url": _authorize_url(state=next_path),
             "logged_out": logged_out,
             "error": error,
         },
     )
+
+
+def _resolve_clinic(username: str) -> tuple[str, str]:
+    """(clinic_id, clinic_name) for a logged-in username. Keycloak roles
+    (admin/owner/staff) are entirely orthogonal to clinic identity — this
+    mapping lives in Postgres (clinic_users/clinics, see
+    infra/migrations/017_clinics.sql) instead, since nothing about this
+    project's auth model ever tied a role to a specific clinic. Falls back
+    to _DEFAULT_CLINIC_ID rather than raising, so an unmapped username
+    doesn't lock a user out entirely — logged, since that's a real gap
+    (a new user was added to Keycloak without a matching clinic_users row),
+    not expected steady-state behavior."""
+    try:
+        conn = psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", "5432")),
+            dbname=os.getenv("DB_NAME", "velodb"),
+            user=get_secret("postgres", "user", "DB_USER") or "velo",
+            password=get_secret("postgres", "password", "DB_PASSWORD") or "velo_secret",
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT cu.clinic_id, c.clinic_name
+            FROM clinic_users cu JOIN clinics c ON c.clinic_id = cu.clinic_id
+            WHERE cu.username = %s
+        """, (username,))
+        row = cur.fetchone()
+        cur.close(); conn.close()
+        if row:
+            return row[0], row[1]
+    except Exception:
+        pass
+    print(f"WARNING: no clinic_users mapping for '{username}' — falling back to {_DEFAULT_CLINIC_ID}", file=sys.stderr)
+    return _DEFAULT_CLINIC_ID, "Al Noor Clinic"
 
 
 @router.get("/auth/callback", include_in_schema=False)
@@ -147,11 +184,15 @@ def auth_callback(request: Request, code: str = "", error: str = ""):
     except HTTPException:
         return RedirectResponse(f"/login?error={urllib.parse.quote('Sign-in could not be completed. Please try again.')}")
     roles = [r for r in claims.get("realm_access", {}).get("roles", []) if r in ("admin", "owner", "staff")]
+    username = claims.get("preferred_username", "unknown")
+    clinic_id, clinic_name = _resolve_clinic(username)
     request.session["user"] = {
-        "username": claims.get("preferred_username", "unknown"),
-        "name": claims.get("name") or claims.get("preferred_username", "unknown"),
+        "username": username,
+        "name": claims.get("name") or username,
         "roles": roles,
     }
+    request.session["clinic_id"] = clinic_id
+    request.session["clinic_name"] = clinic_name
     redirect_to = request.session.pop("post_login_redirect", "/overview")
     return RedirectResponse(redirect_to)
 

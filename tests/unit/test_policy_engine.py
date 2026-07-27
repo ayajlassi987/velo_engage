@@ -42,6 +42,19 @@ def test_leaf_in_operator():
     assert conditions_match(conditions, {"condition_codes": ["I10"]}, TODAY) is False
 
 
+def test_leaf_contains_prefix_matches_bare_and_full_precision_codes():
+    """Family I (predictive clinical risk): synthetic seed data stores bare
+    ICD-10 categories ("E11"), real Epic data stores full precision
+    ("E11.9") — contains_prefix must match both against the same category
+    prefix, unlike plain "contains" (exact array-element equality)."""
+    conditions = {"field": "condition_codes", "operator": "contains_prefix", "value": "E11"}
+    assert conditions_match(conditions, {"condition_codes": ["E11"]}, TODAY) is True
+    assert conditions_match(conditions, {"condition_codes": ["E11.9"]}, TODAY) is True
+    assert conditions_match(conditions, {"condition_codes": ["I10"]}, TODAY) is False
+    assert conditions_match(conditions, {"condition_codes": []}, TODAY) is False
+    assert conditions_match(conditions, {"condition_codes": None}, TODAY) is False
+
+
 def test_leaf_days_until_between():
     conditions = {"field": "coverage_period_end_date", "operator": "days_until_between", "value": [0, 30]}
     assert conditions_match(conditions, {"coverage_period_end_date": "2026-08-01"}, TODAY) is True

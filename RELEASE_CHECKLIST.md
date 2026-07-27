@@ -18,7 +18,7 @@ docker exec ve_temporal temporal schedule list --address temporal:7233
 docker logs --tail 50 ve_orchestrator
 ```
 
-- `daily-engagement-schedule` is active.
+- `daily-engagement-schedule-{clinic_id}` is active for every clinic in the `clinics` table (one per active clinic — see `ve_orchestrator/schedules.py`).
 - The worker listens on `velo-engage-task-queue`.
 
 ## Opportunities, consent, and holdout

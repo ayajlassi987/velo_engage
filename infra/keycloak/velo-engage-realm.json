@@ -89,6 +89,18 @@
         { "type": "password", "value": "staff_dev_pw", "temporary": false }
       ],
       "realmRoles": ["staff"]
+    },
+    {
+      "username": "riverside_owner",
+      "email": "owner@riversidedental.example",
+      "firstName": "Riverside",
+      "lastName": "Owner",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "riverside_dev_pw", "temporary": false }
+      ],
+      "realmRoles": ["owner"]
     }
   ]
 }

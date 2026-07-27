@@ -13,6 +13,7 @@ dependencies = [
     "pandas>=2.2,<3",
     "pyjwt[crypto]>=2.8.0",
     "itsdangerous>=2.1.0",
+    "python-multipart>=0.0.9",
 ]
 
 [build-system]

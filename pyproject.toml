@@ -31,6 +31,8 @@ dev = [
     "temporalio>=1.29.0",
     "fastapi>=0.125.0",
     "python-dotenv>=1.2.2",
+    "pyjwt[crypto]>=2.8.0",
+    "python-multipart>=0.0.9",
 ]
 
 [tool.uv.workspace]

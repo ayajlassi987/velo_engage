@@ -23,6 +23,21 @@ logger = logging.getLogger(__name__)
 CLINIC_ID = os.getenv("CLINIC_ID","clinic_alnoor_001")
 CADENCE = int(os.getenv("CADENCE_BASELINE_DAYS",120))
 
+# Every consent_class referenced by policies/opportunities/*.yml (mirrors
+# scripts/seed_synthetic_phase1.py's CONSENT_CLASSES derivation — that
+# script computes this set from POLICY_FAMILY_FLAGS, which is itself a
+# hardcoded mirror of the same YAMLs, not a runtime YAML read; kept
+# consistent with that existing precedent rather than adding a YAML
+# dependency to this service). Previously only 'care_recall' was granted
+# here, so every real Epic patient silently failed consent gating for any
+# family using a different class (B, I, and others) — not because they
+# lacked real consent, but because this placeholder never granted it.
+REAL_PATIENT_CONSENT_CLASSES = [
+    "care_recall", "care_coordination", "clinical_recall", "contextual_outreach",
+    "digital_followup", "engagement", "household_outreach", "operational_offer",
+    "preference_outreach", "promotional_outreach", "quality_followup",
+]
+
 
 def _db():
     return psycopg2.connect(
@@ -113,17 +128,25 @@ def _is_clinical_note(ref: dict) -> bool:
     return False
 
 
-def _pull_clinical_notes(pid: str) -> list[dict]:
-    """Returns clinical notes for a patient, for Task 2 (clinical note
-    intelligence) — never persisted here or anywhere else in ve_connect,
-    only returned over HTTP for the DGX-side extraction service to
-    consume and discard after processing (see PROJECT_STATUS.md).
+def _pull_clinical_notes(pid: str) -> tuple[list[dict], str | None]:
+    """Returns (notes, search_error) for a patient, for Task 2 (clinical
+    note intelligence) — never persisted here or anywhere else in
+    ve_connect, only returned over HTTP for the DGX-side extraction
+    service to consume and discard after processing (see PROJECT_STATUS.md).
 
     Defensive in the same style as _careplans_or_empty: DocumentReference
     is a newly-scoped resource type for this app (see EPIC_SCOPES), not
     yet proven stable against this app's specific Epic authorization the
     way Condition/Encounter/Procedure/Coverage are — one unavailable
-    resource type shouldn't block the rest of a patient pull.
+    resource type shouldn't block the rest of a patient pull. But unlike
+    _careplans_or_empty (whose only consumer is a boolean flag, where
+    "unavailable" and "false" are equally fine to conflate), a caller here
+    genuinely needs to tell "confirmed zero notes" apart from "couldn't
+    check" — an empty list for both silently masqueraded an Epic auth
+    failure (expired interactive OAuth token, invalid_grant on refresh) as
+    "this patient has no clinical notes" for every patient in a run. Hence
+    search_error: None on a genuine (even if empty) search, a message
+    otherwise.
 
     v1 scope, confirmed against real Epic sandbox data (not assumed):
     text/plain, XML (e.g. CCDA), and text/html (the dominant real-world
@@ -135,8 +158,9 @@ def _pull_clinical_notes(pid: str) -> list[dict]:
     try:
         refs = search_resources("DocumentReference", {"patient": pid, "status": "current"})
     except Exception as exc:
-        logger.warning(f"DocumentReference search unavailable for {pid} ({exc}) — no notes pulled")
-        return []
+        error = f"DocumentReference search unavailable for {pid}: {exc}"
+        logger.warning(f"{error} — no notes pulled")
+        return [], error
 
     notes = []
     for ref in refs:
@@ -169,7 +193,7 @@ def _pull_clinical_notes(pid: str) -> list[dict]:
                 "note_date": ref.get("date"),
                 "text": text,
             })
-    return notes
+    return notes, None
 
 
 def _deterministic_extraction_id(document_reference_id: str, clinic_id: str) -> str:
@@ -377,10 +401,14 @@ def _upsert(conn, f: dict):
           f["last_procedure_type"],f["last_procedure_date"],f["open_treatment_plan_flag"],
           f["coverage_period_end_date"],f["condition_codes"],f["age"],f["sex"]))
 
-    # Consent — placeholder: in production only grant consent for patients
-    # who have signed a digital consent form in Epic
-    cur.execute("""
-        INSERT INTO consent (patient_id,clinic_id,consent_class,channel)
-        VALUES (%s,%s,'care_recall','whatsapp') ON CONFLICT DO NOTHING
-    """, (f["patient_id"],f["clinic_id"]))
+    # Consent — placeholder: in production only grant the specific
+    # consent_class a patient actually signed in Epic, per class, not this
+    # blanket grant. Every class is granted here (matching synthetic
+    # seeding's behavior) so a real patient isn't arbitrarily blocked from
+    # families that check a different consent_class than 'care_recall'.
+    for consent_class in REAL_PATIENT_CONSENT_CLASSES:
+        cur.execute("""
+            INSERT INTO consent (patient_id,clinic_id,consent_class,channel)
+            VALUES (%s,%s,%s,'whatsapp') ON CONFLICT DO NOTHING
+        """, (f["patient_id"],f["clinic_id"],consent_class))
     cur.close()

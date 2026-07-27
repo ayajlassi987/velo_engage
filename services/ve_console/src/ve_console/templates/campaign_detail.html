@@ -36,10 +36,80 @@
 
     <section class="content-section outcome-panel">
       <div class="section-heading"><div><h2>Attributed outcome</h2><span>Measured impact from this journey</span></div></div>
-      <div class="outcome-value"><span>Recovered revenue</span><strong>{{ campaign.revenue|money }}</strong></div>
+      <div class="outcome-value">
+        <span>Recovered revenue</span>
+        {% if revenues %}<strong>{{ campaign.revenue|money }}</strong>
+        {% else %}<strong class="outcome-value-empty">No invoice recorded yet</strong>{% endif %}
+      </div>
       <div class="outcome-flags"><span class="{{ 'on' if campaign.delivered }}"><i data-lucide="check-check"></i>Delivered</span><span class="{{ 'on' if campaign.read }}"><i data-lucide="eye"></i>Read</span><span class="{{ 'on' if campaign.replied }}"><i data-lucide="reply"></i>Replied</span><span class="{{ 'on' if campaign.booked }}"><i data-lucide="calendar-check"></i>Booked</span><span class="{{ 'on' if campaign.attended }}"><i data-lucide="stethoscope"></i>Attended</span></div>
+      {% if campaign.treatment_arm != 'holdout' and (not campaign.booked or not campaign.attended) %}
+      <div class="outcome-actions">
+        <span>No booking/attendance feed for this patient yet? Mark it manually once confirmed by phone or in person.</span>
+        <div class="outcome-actions-buttons">
+          {% if not campaign.booked %}
+          <form method="post" action="/campaigns/{{ campaign.campaign_id }}/outcome">
+            <input type="hidden" name="stage" value="booked">
+            <button type="submit" class="button secondary"><i data-lucide="calendar-check"></i>Mark as booked</button>
+          </form>
+          {% endif %}
+          {% if not campaign.attended %}
+          <form method="post" action="/campaigns/{{ campaign.campaign_id }}/outcome" class="outcome-attend-form">
+            <input type="hidden" name="stage" value="attended">
+            <input type="number" name="amount" step="0.01" min="0" placeholder="Revenue $ (leave blank if unknown)">
+            <button type="submit" class="button secondary"><i data-lucide="stethoscope"></i>Mark as attended</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% elif campaign.treatment_arm == 'holdout' %}
+      <div class="outcome-actions">
+        <span>This is a holdout campaign — deliberately not contacted, so it can't be marked booked/attended. That would corrupt the causal comparison the holdout arm exists to measure.</span>
+      </div>
+      {% endif %}
     </section>
   </div>
+
+  <section class="content-section">
+    <div class="section-heading"><div><h2>Model scores</h2><span>What the ranking engine used to prioritize this patient</span></div></div>
+    <div class="score-card-grid">
+      <article class="score-card accent-blue">
+        <i data-lucide="target"></i>
+        <span class="score-card-label">Expected value</span>
+        <strong>{{ '%.3f'|format(campaign.expected_value_score) if campaign.expected_value_score is not none else '-' }}</strong>
+        <small>Combined ranking score</small>
+      </article>
+      <article class="score-card {{ 'accent-coral' if (campaign.noshow_score or 0) >= 0.5 else 'accent-green' }}">
+        <i data-lucide="alert-triangle"></i>
+        <span class="score-card-label">No-show risk</span>
+        <strong>{{ '%.0f%%'|format(campaign.noshow_score * 100) if campaign.noshow_score is not none else '-' }}</strong>
+        {% if campaign.noshow_score is not none %}<span class="score-bar"><span style="width:{{ (campaign.noshow_score * 100)|round }}%"></span></span>{% else %}<small>Not scored</small>{% endif %}
+      </article>
+      <article class="score-card accent-green">
+        <i data-lucide="calendar-check"></i>
+        <span class="score-card-label">Booking propensity</span>
+        <strong>{{ '%.0f%%'|format(campaign.booking_propensity_score * 100) if campaign.booking_propensity_score is not none else '-' }}</strong>
+        {% if campaign.booking_propensity_score is not none %}<span class="score-bar"><span style="width:{{ (campaign.booking_propensity_score * 100)|round }}%"></span></span>{% else %}<small>Not scored</small>{% endif %}
+      </article>
+      <article class="score-card accent-amber">
+        <i data-lucide="circle-dollar-sign"></i>
+        <span class="score-card-label">Expected value / visit</span>
+        <strong>{{ campaign.value_score|money if campaign.value_score is not none else '-' }}</strong>
+        <small>Predicted revenue if booked</small>
+      </article>
+      <article class="score-card {{ 'accent-green' if (campaign.uplift_score or 0) > 0 else 'accent-coral' }}">
+        <i data-lucide="{{ 'trending-up' if (campaign.uplift_score or 0) > 0 else 'trending-down' }}"></i>
+        <span class="score-card-label">Uplift (treated − control)</span>
+        <strong>{{ '%+.3f'|format(campaign.uplift_score) if campaign.uplift_score is not none else '-' }}</strong>
+        <small>{{ 'Persuadable — worth contacting' if (campaign.uplift_score or 0) > 0 else 'Discounted 10x — outreach may not help' if campaign.uplift_score is not none else 'Not scored' }}</small>
+      </article>
+      <article class="score-card accent-blue">
+        <i data-lucide="clock"></i>
+        <span class="score-card-label">Predicted days-to-book</span>
+        <strong>{{ '%.1f d'|format(campaign.survival_score) if campaign.survival_score is not none else '-' }}</strong>
+        <small>{{ 'Faster → less timing discount' if campaign.survival_score is not none else 'Not scored (pre-model campaign)' }}</small>
+      </article>
+    </div>
+  </section>
 
   <div class="detail-grid timeline-grid">
     <section class="content-section">

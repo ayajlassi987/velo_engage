@@ -46,8 +46,8 @@ async def clinical_notes(patient_id: str):
     written to ve_connect's own database; this endpoint is the only place
     raw note text exists on this machine, and only transiently in the
     HTTP response body."""
-    notes = _pull_clinical_notes(patient_id)
-    return {"patient_id": patient_id, "notes": notes}
+    notes, search_error = _pull_clinical_notes(patient_id)
+    return {"patient_id": patient_id, "notes": notes, "search_error": search_error}
 
 
 class ClinicalExtractionIn(BaseModel):

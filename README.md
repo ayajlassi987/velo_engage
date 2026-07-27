@@ -104,18 +104,23 @@ docker exec ve_temporal temporal schedule list \
   --address temporal:7233
 ```
 
-`daily-engagement-schedule` runs automatically every day at `02:00 UTC`,
-which is `03:00` in Lagos. Starting Docker after that time does not require a
-manual run unless you specifically want to execute the pipeline immediately.
+Multi-clinic productization (see `PROJECT_STATUS.md` §10) replaced the single
+hand-created schedule with one per clinic, created via
+`services/ve_orchestrator/src/ve_orchestrator/schedules.py`:
+`daily-engagement-schedule-{clinic_id}` — e.g. `daily-engagement-schedule-clinic_alnoor_001`.
+Each runs automatically every day at `02:00 UTC`, which is `03:00` in Lagos.
+Starting Docker after that time does not require a manual run unless you
+specifically want to execute the pipeline immediately.
 
 ### 6. Run the flow immediately when needed
 
-To demonstrate or test the full flow without waiting for the next schedule:
+To demonstrate or test the full flow without waiting for the next schedule
+(swap in the clinic you want to trigger):
 
 ```bash
 docker exec ve_temporal temporal schedule trigger \
   --address temporal:7233 \
-  --schedule-id daily-engagement-schedule
+  --schedule-id daily-engagement-schedule-clinic_alnoor_001
 ```
 
 This runs:

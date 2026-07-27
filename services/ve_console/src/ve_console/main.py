@@ -9,7 +9,7 @@ from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -109,6 +109,12 @@ def scalar(sql: str, params=(), default=0):
     return next(iter(row.values())) if row else default
 
 
+def execute(sql: str, params=()):
+    with db() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        conn.commit()
+
+
 def format_datetime(value) -> str:
     if not value:
         return "-"
@@ -135,6 +141,15 @@ templates.env.filters["money"] = format_money
 templates.env.filters["percent"] = format_percent
 
 
+def _clinic_id(request: Request) -> str:
+    """The clinic the logged-in user belongs to (set at login — see
+    ve_console/auth.py's _resolve_clinic). Falls back to the module-level
+    default only for paths that bypass normal login (there are none today,
+    but this mirrors auth.py's own fallback discipline rather than raising
+    on a missing session key)."""
+    return request.session.get("clinic_id", CLINIC_ID)
+
+
 def render(request: Request, template: str, *, active: str, title: str, subtitle: str, **context):
     return templates.TemplateResponse(
         request=request,
@@ -143,8 +158,8 @@ def render(request: Request, template: str, *, active: str, title: str, subtitle
             "active": active,
             "title": title,
             "subtitle": subtitle,
-            "clinic_name": CLINIC_NAME,
-            "clinic_id": CLINIC_ID,
+            "clinic_name": request.session.get("clinic_name", CLINIC_NAME),
+            "clinic_id": _clinic_id(request),
             "now": datetime.now(timezone.utc),
             "user": request.session.get("user"),
             **context,
@@ -211,7 +226,7 @@ def _real_or_unattributed_campaign(alias: str = "") -> str:
     )
 
 
-def overview_metrics():
+def overview_metrics(clinic_id: str):
     return one(
         f"""
         SELECT
@@ -226,7 +241,7 @@ def overview_metrics():
           (SELECT COALESCE(SUM(amount),0) FROM revenue_attributions
              WHERE clinic_id=%s AND paid AND campaign_id IS NOT NULL AND {_REAL_CAMPAIGN}) revenue
         """,
-        (CLINIC_ID,) * 7,
+        (clinic_id,) * 7,
     )
 
 
@@ -237,7 +252,8 @@ def root():
 
 @app.get("/overview")
 def overview(request: Request):
-    metrics = overview_metrics()
+    clinic_id = _clinic_id(request)
+    metrics = overview_metrics(clinic_id)
     spend = Decimal(metrics["dispatched"] or 0) * MESSAGE_COST
     metrics["spend"] = spend
     metrics["roi"] = ((metrics["revenue"] - spend) / spend * 100) if spend else Decimal("0")
@@ -264,7 +280,7 @@ def overview(request: Request):
         FROM campaigns c LEFT JOIN outcomes o USING (campaign_id)
         WHERE c.clinic_id=%s AND {_real_campaign("c")}
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     funnel_max = max(funnel.values()) if funnel else 1
 
@@ -281,7 +297,7 @@ def overview(request: Request):
         WHERE c.clinic_id=%s AND {_real_campaign("c")}
         ORDER BY c.created_at DESC LIMIT 8
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     recent_inbound = query(
         """
@@ -307,8 +323,9 @@ def opportunities(
     status: str = "all",
     limit: int = Query(100, ge=20, le=200),
 ):
+    clinic_id = _clinic_id(request)
     conditions = ["o.clinic_id=%s", _real_opportunity("o")]
-    params = [CLINIC_ID]
+    params = [clinic_id]
     if q:
         conditions.append("(o.patient_id ILIKE %s OR o.rule_name ILIKE %s)")
         params.extend([f"%{q}%", f"%{q}%"])
@@ -358,13 +375,13 @@ def opportunities(
         LEFT JOIN outcomes oc USING (campaign_id)
         WHERE o.clinic_id=%s AND {_real_opportunity("o")}
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     families = [
         row["family"]
         for row in query(
             f"SELECT DISTINCT family FROM opportunities WHERE clinic_id=%s AND {_real_opportunity()} ORDER BY family",
-            (CLINIC_ID,),
+            (clinic_id,),
         )
     ]
     return render(
@@ -390,8 +407,9 @@ def campaigns(
     status: str = "all",
     limit: int = Query(100, ge=20, le=200),
 ):
+    clinic_id = _clinic_id(request)
     conditions = ["c.clinic_id=%s", _real_campaign("c")]
-    params = [CLINIC_ID]
+    params = [clinic_id]
     if q:
         conditions.append("(c.patient_id ILIKE %s OR c.campaign_id ILIKE %s)")
         params.extend([f"%{q}%", f"%{q}%"])
@@ -442,7 +460,7 @@ def campaigns(
         FROM campaigns c LEFT JOIN outcomes o USING (campaign_id)
         WHERE c.clinic_id=%s AND {_real_campaign("c")}
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     return render(
         request, "list.html", active="campaigns", title="Campaigns",
@@ -460,6 +478,14 @@ def campaigns(
 
 @app.get("/campaigns/{campaign_id}")
 def campaign_detail(request: Request, campaign_id: str):
+    clinic_id = _clinic_id(request)
+    # clinic_id was NOT part of this query before multi-clinic support — a
+    # real cross-tenant gap found while adding it: any logged-in user could
+    # view any other clinic's campaign detail page just by knowing/guessing
+    # its ID. Scoping by clinic_id here, and treating a real campaign
+    # belonging to a *different* clinic identically to "doesn't exist"
+    # (404, not 403) — same information-disclosure discipline as any
+    # other multi-tenant resource lookup.
     campaign = one(
         """
         SELECT c.*, o.priority_score, o.rule_name, o.rule_evidence,
@@ -474,9 +500,9 @@ def campaign_detail(request: Request, campaign_id: str):
         FROM campaigns c
         LEFT JOIN opportunities o USING (opportunity_id)
         LEFT JOIN outcomes oc USING (campaign_id)
-        WHERE c.campaign_id=%s
+        WHERE c.campaign_id=%s AND c.clinic_id=%s
         """,
-        (campaign_id,),
+        (campaign_id, clinic_id),
     )
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -518,8 +544,121 @@ def campaign_detail(request: Request, campaign_id: str):
     )
 
 
+@app.post("/campaigns/{campaign_id}/outcome")
+def mark_campaign_outcome(
+    request: Request, campaign_id: str, stage: str = Form(...), amount: str = Form("")
+):
+    # Coordinators use this when a patient calls in or shows up outside the
+    # system's own channels (e.g. Epic booking isn't wired up yet for real
+    # patients — see PROJECT_STATUS.md). Same clinic-scoping discipline as
+    # campaign_detail: a real campaign belonging to another clinic is
+    # treated as "doesn't exist", not editable by guessing its ID.
+    clinic_id = _clinic_id(request)
+    if stage not in ("booked", "attended"):
+        raise HTTPException(status_code=400, detail="stage must be 'booked' or 'attended'")
+    campaign = one(
+        "SELECT campaign_id, patient_id, treatment_arm FROM campaigns WHERE campaign_id=%s AND clinic_id=%s",
+        (campaign_id, clinic_id),
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign["treatment_arm"] == "holdout":
+        # The holdout arm exists to measure what happens with zero
+        # intervention — see TESTING_GUIDE.md's holdout safety gate
+        # (campaigns WHERE treatment_arm='holdout' AND dispatched_at IS NOT
+        # NULL must always be 0 rows). Manually crediting a booking/
+        # attendance here would corrupt that causal comparison exactly like
+        # an accidental real dispatch would, so it's rejected outright
+        # rather than just hidden in the UI.
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot mark outcomes on a holdout campaign — it was deliberately not contacted.",
+        )
+    patient_id = campaign["patient_id"]
+    # /bookings and the overview KPI cards count rows in `bookings`, not
+    # outcomes.booked/attended (see ve_measure.booking_listener.record_booking,
+    # the real Epic-event path) — a manual mark has to write both tables the
+    # same way a real AppointmentConfirmed/Completed event would, or it's
+    # invisible everywhere except this one campaign page. booking_id is
+    # deterministic on campaign_id so repeated clicks upsert the same row
+    # instead of piling up duplicates.
+    booking_id = f"manual-{campaign_id}"
+    attended = stage == "attended"
+    execute(
+        """
+        INSERT INTO bookings
+          (booking_id, patient_id, clinic_id, campaign_id, appointment_date, status, created_at)
+        VALUES (%(booking_id)s, %(patient_id)s, %(clinic_id)s, %(campaign_id)s, now(), %(stage)s, now())
+        ON CONFLICT (booking_id) DO UPDATE SET
+          status = CASE WHEN %(stage)s='attended' THEN 'attended' ELSE bookings.status END,
+          updated_at = now()
+        """,
+        {"booking_id": booking_id, "patient_id": patient_id, "clinic_id": clinic_id,
+         "campaign_id": campaign_id, "stage": stage},
+    )
+    # Mirrors ve_reach.db.upsert_outcome / record_booking's idempotent
+    # OR-merge (ve_reach isn't importable here — separate container/package)
+    # so a manual mark never clobbers a flag or timestamp a real webhook or
+    # event already set. Attended always implies booked, same as the real
+    # AppointmentCompleted path.
+    execute(
+        """
+        INSERT INTO outcomes (campaign_id, patient_id, booked, attended, booked_at, attended_at)
+        VALUES (%(campaign_id)s, %(patient_id)s, TRUE, %(attended)s, now(),
+                CASE WHEN %(attended)s THEN now() END)
+        ON CONFLICT (campaign_id) DO UPDATE
+          SET booked = TRUE,
+              attended = outcomes.attended OR EXCLUDED.attended,
+              booked_at = COALESCE(outcomes.booked_at, EXCLUDED.booked_at),
+              attended_at = COALESCE(outcomes.attended_at, EXCLUDED.attended_at),
+              recorded_at = now()
+        """,
+        {"campaign_id": campaign_id, "patient_id": patient_id, "attended": attended},
+    )
+    # Revenue is a separate concept from booked/attended in this schema (see
+    # ve_measure.booking_listener.record_revenue/refresh_campaign_revenue —
+    # invoices arrive as their own event, summed into outcomes.revenue).
+    # Without this, "Attended" flips true but "Recovered revenue" stays $0
+    # forever, which looks broken even though it's actually just an
+    # unrecorded invoice. Only meaningful once the visit happened, and
+    # optional since staff may not know the amount yet.
+    if attended and amount.strip():
+        try:
+            amount_decimal = Decimal(amount.strip())
+        except Exception:
+            raise HTTPException(status_code=400, detail="Revenue amount must be a number")
+        if amount_decimal < 0:
+            raise HTTPException(status_code=400, detail="Revenue amount cannot be negative")
+        invoice_id = f"manual-{campaign_id}"
+        execute(
+            """
+            INSERT INTO revenue_attributions
+              (revenue_id, invoice_id, booking_id, patient_id, clinic_id,
+               campaign_id, amount, currency, paid, occurred_at)
+            VALUES (%(invoice_id)s, %(invoice_id)s, %(booking_id)s, %(patient_id)s,
+                    %(clinic_id)s, %(campaign_id)s, %(amount)s, 'USD', TRUE, now())
+            ON CONFLICT (invoice_id) DO UPDATE SET
+              amount = EXCLUDED.amount, paid = TRUE, updated_at = now()
+            """,
+            {"invoice_id": invoice_id, "booking_id": booking_id, "patient_id": patient_id,
+             "clinic_id": clinic_id, "campaign_id": campaign_id, "amount": amount_decimal},
+        )
+        execute(
+            """
+            INSERT INTO outcomes (campaign_id, patient_id, revenue)
+            SELECT %(campaign_id)s, %(patient_id)s, COALESCE(SUM(amount) FILTER (WHERE paid), 0)
+            FROM revenue_attributions WHERE campaign_id=%(campaign_id)s
+            ON CONFLICT (campaign_id) DO UPDATE SET
+              revenue = EXCLUDED.revenue, recorded_at = now()
+            """,
+            {"campaign_id": campaign_id, "patient_id": patient_id},
+        )
+    return RedirectResponse(url=f"/campaigns/{campaign_id}", status_code=303)
+
+
 @app.get("/whatsapp")
 def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
+    clinic_id = _clinic_id(request)
     search = f"%{q}%"
     outbound = query(
         f"""
@@ -559,7 +698,7 @@ def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
                OR recipient_e164 ILIKE %s)
         ORDER BY dispatched_at DESC NULLS LAST LIMIT 100
         """,
-        (CLINIC_ID, CLINIC_ID, q, search, search, search),
+        (clinic_id, clinic_id, q, search, search, search),
     )
     inbound = query(
         """
@@ -594,7 +733,7 @@ def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
                c.read+m.read read,c.replied+m.replied replied
         FROM campaign_metrics c CROSS JOIN manual_metrics m
         """,
-        (CLINIC_ID, CLINIC_ID),
+        (clinic_id, clinic_id),
     )
     return render(
         request, "whatsapp.html", active="whatsapp", title="WhatsApp",
@@ -605,6 +744,7 @@ def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
 
 @app.get("/whatsapp/messages/{wa_message_id}", name="message_detail")
 def message_detail(request: Request, wa_message_id: str):
+    clinic_id = _clinic_id(request)
     message = one(
         """
         SELECT om.*, c.family, c.treatment_arm,
@@ -616,7 +756,7 @@ def message_detail(request: Request, wa_message_id: str):
         LEFT JOIN outcomes o ON o.campaign_id=om.campaign_id
         WHERE om.wa_message_id=%s AND om.clinic_id=%s
         """,
-        (wa_message_id, CLINIC_ID),
+        (wa_message_id, clinic_id),
     )
     if not message:
         raise HTTPException(status_code=404, detail="WhatsApp message not found")
@@ -642,7 +782,7 @@ def message_detail(request: Request, wa_message_id: str):
         """,
         (
             message["recipient_e164"], message["sent_at"], message["sent_at"],
-            CLINIC_ID, message["sent_at"],
+            clinic_id, message["sent_at"],
         ),
     )
     delivered = message["status"] in ("delivered", "read") or message["campaign_delivered"]
@@ -665,8 +805,9 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
     same "honest gap" pattern as /models' insufficient_data states —
     the presence of flags means a human should double-check that row, not
     that anything failed silently."""
+    clinic_id = _clinic_id(request)
     conditions = ["clinic_id=%s"]
-    params = [CLINIC_ID]
+    params = [clinic_id]
     if q:
         conditions.append("patient_id ILIKE %s")
         params.append(f"%{q}%")
@@ -689,7 +830,7 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
           COUNT(DISTINCT patient_id) patients
         FROM clinical_extractions WHERE clinic_id=%s
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     return render(
         request, "list.html", active="clinical-summaries", title="Clinical summaries",
@@ -706,8 +847,9 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
 
 @app.get("/bookings")
 def bookings(request: Request, q: str = "", status: str = "all", limit: int = 100):
+    clinic_id = _clinic_id(request)
     conditions = ["b.clinic_id=%s", _real_or_unattributed_campaign("b")]
-    params = [CLINIC_ID]
+    params = [clinic_id]
     if q:
         conditions.append("(b.patient_id ILIKE %s OR b.booking_id ILIKE %s)")
         params.extend([f"%{q}%", f"%{q}%"])
@@ -733,7 +875,7 @@ def bookings(request: Request, q: str = "", status: str = "all", limit: int = 10
           COUNT(*) FILTER (WHERE campaign_id IS NOT NULL) attributed
         FROM bookings WHERE clinic_id=%s AND {_real_or_unattributed_campaign()}
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     return render(
         request, "list.html", active="bookings", title="Bookings",
@@ -749,8 +891,9 @@ def bookings(request: Request, q: str = "", status: str = "all", limit: int = 10
 
 @app.get("/revenue")
 def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100, _owner=Depends(require_owner)):
+    clinic_id = _clinic_id(request)
     conditions = ["r.clinic_id=%s", _real_or_unattributed_campaign("r")]
-    params = [CLINIC_ID]
+    params = [clinic_id]
     if q:
         conditions.append("(r.patient_id ILIKE %s OR r.invoice_id ILIKE %s)")
         params.extend([f"%{q}%", f"%{q}%"])
@@ -775,11 +918,11 @@ def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100,
           COALESCE(SUM(amount) FILTER (WHERE NOT paid),0) outstanding
         FROM revenue_attributions WHERE clinic_id=%s AND {_real_or_unattributed_campaign()}
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     dispatched = scalar(
         f"SELECT COUNT(*) FROM campaigns WHERE clinic_id=%s AND dispatched_at IS NOT NULL AND {_REAL_CAMPAIGN}",
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     spend = Decimal(dispatched) * MESSAGE_COST
     summary["spend"] = spend
@@ -799,6 +942,7 @@ def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100,
 
 @app.get("/holdout")
 def holdout(request: Request, _owner=Depends(require_owner)):
+    clinic_id = _clinic_id(request)
     rows = query(
         f"""
         SELECT c.treatment_arm,COUNT(*) campaigns,
@@ -809,7 +953,7 @@ def holdout(request: Request, _owner=Depends(require_owner)):
         FROM campaigns c LEFT JOIN outcomes o USING (campaign_id)
         WHERE c.clinic_id=%s AND {_real_campaign("c")} GROUP BY c.treatment_arm ORDER BY c.treatment_arm DESC
         """,
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     by_arm = {row["treatment_arm"]: row for row in rows}
     for row in rows:
@@ -825,7 +969,7 @@ def holdout(request: Request, _owner=Depends(require_owner)):
         "relative_lift": ((treated_rate / holdout_rate) - 1) * 100 if holdout_rate else 0,
         "holdout_dispatches": scalar(
             f"SELECT COUNT(*) FROM campaigns WHERE clinic_id=%s AND treatment_arm='holdout' AND dispatched_at IS NOT NULL AND {_REAL_CAMPAIGN}",
-            (CLINIC_ID,),
+            (clinic_id,),
         ),
     }
     return render(
@@ -848,6 +992,7 @@ REGISTERED_MODELS = [
     {"model_name": "velo_engage_uplift_treated", "label": "Uplift (treated arm)", "score_column": "uplift_score"},
     {"model_name": "velo_engage_uplift_control", "label": "Uplift (control arm)", "score_column": "uplift_score"},
     {"model_name": "velo_engage_survival", "label": "Survival / time-to-need", "score_column": "survival_score"},
+    {"model_name": "velo_engage_lookalike", "label": "Lookalike / cross-sell", "score_column": None},
     {"model_name": "ve_intent_v1", "label": "Intent classifier", "score_column": None},
 ]
 
@@ -862,11 +1007,11 @@ def _latest_run_metrics(run_id: str | None) -> dict:
     return {row["key"]: row["value"] for row in rows}
 
 
-def _score_drift(score_column: str) -> dict | None:
+def _score_drift(clinic_id: str, score_column: str) -> dict | None:
     score_rows = query(
         f"SELECT {score_column} AS score, created_at FROM campaigns "
         f"WHERE clinic_id=%s AND {score_column} IS NOT NULL AND {_REAL_CAMPAIGN} ORDER BY created_at",
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     if not score_rows:
         return None
@@ -890,12 +1035,12 @@ def _score_drift(score_column: str) -> dict | None:
 FEATURE_DRIFT_COLUMNS = ["age", "days_since_last_visit", "visit_cadence_baseline"]
 
 
-def _feature_drift(column: str) -> dict | None:
+def _feature_drift(clinic_id: str, column: str) -> dict | None:
     rows = query(
         f"SELECT {column} AS value, as_of_timestamp AS ts FROM patient_features "
         f"WHERE clinic_id=%s AND {column} IS NOT NULL "
         f"AND patient_id NOT LIKE 'SYN%%' AND patient_id NOT LIKE 'P0%%' ORDER BY ts",
-        (CLINIC_ID,),
+        (clinic_id,),
     )
     if not rows:
         return None
@@ -928,11 +1073,11 @@ _SYNTHETIC_COHORT = "(c.patient_id LIKE 'SYN%%' OR c.patient_id LIKE 'P0%%')"
 _REAL_COHORT = "(c.patient_id NOT LIKE 'SYN%%' AND c.patient_id NOT LIKE 'P0%%')"
 
 
-def _model_quality(model_name: str, cohort_sql: str) -> dict | None:
+def _model_quality(clinic_id: str, model_name: str, cohort_sql: str) -> dict | None:
     template = _QUALITY_QUERIES.get(model_name)
     if not template:
         return None
-    rows = query(template.format(cohort=cohort_sql), (CLINIC_ID,))
+    rows = query(template.format(cohort=cohort_sql), (clinic_id,))
     if not rows:
         return None
     scores = [float(r["score"]) for r in rows]
@@ -942,6 +1087,7 @@ def _model_quality(model_name: str, cohort_sql: str) -> dict | None:
 
 @app.get("/models")
 def models(request: Request, _admin=Depends(require_admin)):
+    clinic_id = _clinic_id(request)
     versions = query(
         """
         SELECT mv.name,mv.version,mv.creation_time AS creation_timestamp,
@@ -958,7 +1104,7 @@ def models(request: Request, _admin=Depends(require_admin)):
     # Drift is per score column, not per model name (uplift's two models
     # share one output column) — compute once, reuse across matching cards.
     drift_by_score = {
-        entry["score_column"]: _score_drift(entry["score_column"])
+        entry["score_column"]: _score_drift(clinic_id, entry["score_column"])
         for entry in REGISTERED_MODELS
         if entry["score_column"]
     }
@@ -979,21 +1125,21 @@ def models(request: Request, _admin=Depends(require_admin)):
             "headline_version": headline_version,
             "metrics": _latest_run_metrics(headline_version["run_id"]) if headline_version else {},
             "drift": drift_by_score.get(entry["score_column"]) if entry["score_column"] else None,
-            "quality_synthetic": _model_quality(entry["model_name"], _SYNTHETIC_COHORT),
-            "quality_real": _model_quality(entry["model_name"], _REAL_COHORT),
+            "quality_synthetic": _model_quality(clinic_id, entry["model_name"], _SYNTHETIC_COHORT),
+            "quality_real": _model_quality(clinic_id, entry["model_name"], _REAL_COHORT),
         })
 
-    feature_drift = {column: _feature_drift(column) for column in FEATURE_DRIFT_COLUMNS}
+    feature_drift = {column: _feature_drift(clinic_id, column) for column in FEATURE_DRIFT_COLUMNS}
 
     return render(
         request, "models.html", active="models", title="ML models",
         subtitle="Training runs, registered versions, and drift across every model.",
         model_cards=model_cards, versions=versions, mlflow_url="http://localhost:5000",
-        feature_drift=feature_drift, alerts=_model_alerts(),
+        feature_drift=feature_drift, alerts=_model_alerts(clinic_id),
     )
 
 
-def _model_alerts() -> list[dict]:
+def _model_alerts(clinic_id: str) -> list[dict]:
     """Minimal alerting: no Slack/email/PagerDuty integration exists
     anywhere in this codebase, so this surfaces as a dashboard banner
     (same pattern /operations already uses for service health) rather than
@@ -1002,14 +1148,14 @@ def _model_alerts() -> list[dict]:
     for entry in REGISTERED_MODELS:
         if not entry["score_column"]:
             continue
-        drift = _score_drift(entry["score_column"])
+        drift = _score_drift(clinic_id, entry["score_column"])
         if drift and drift.get("status") == "critical":
             alerts.append({
                 "label": f"{entry['label']} score drift",
                 "detail": f"PSI {drift['psi']} over the last {drift['window_days']}d — significant shift from baseline.",
             })
     for column in FEATURE_DRIFT_COLUMNS:
-        drift = _feature_drift(column)
+        drift = _feature_drift(clinic_id, column)
         if drift and drift.get("status") == "critical":
             alerts.append({
                 "label": f"Feature drift: {column}",
@@ -1048,13 +1194,13 @@ def operations(request: Request, _admin=Depends(require_admin)):
     return render(
         request, "operations.html", active="operations", title="System operations",
         subtitle="Live connectivity across the Velo Engage platform.", services=services,
-        healthy=sum(service["ok"] for service in services), alerts=_model_alerts(),
+        healthy=sum(service["ok"] for service in services), alerts=_model_alerts(_clinic_id(request)),
     )
 
 
 @app.get("/api/summary")
-def api_summary():
-    metrics = overview_metrics()
+def api_summary(request: Request):
+    metrics = overview_metrics(_clinic_id(request))
     return {key: float(value) if isinstance(value, Decimal) else value for key, value in metrics.items()}
 
 

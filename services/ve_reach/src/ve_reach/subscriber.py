@@ -100,7 +100,7 @@ async def process_campaign(msg):
         logger.info(f"Processing campaign {campaign_id[:8]}… patient={patient_id} family={family}")
 
         real_phone = await asyncio.to_thread(get_patient_phone, patient_id, clinic_id)
-        if not real_phone:
+        if not real_phone and not SANDBOX_OVERRIDE_NUMBER:
             logger.error(f"No phone found for {patient_id} — skipping")
             await msg.ack()
             return
@@ -108,7 +108,7 @@ async def process_campaign(msg):
         patient_name = await asyncio.to_thread(get_patient_name, patient_id, clinic_id)
         send_to = SANDBOX_OVERRIDE_NUMBER or real_phone
         if send_to != real_phone:
-            logger.info(f"[SANDBOX] Redirecting from {real_phone} → {send_to}")
+            logger.info(f"[SANDBOX] Redirecting from {real_phone or '(no phone on file)'} → {send_to}")
 
         message = build_campaign_message(campaign, patient_name)
         stored_template_name = message.name

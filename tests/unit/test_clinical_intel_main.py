@@ -48,7 +48,7 @@ def _note(doc_id="doc1", text="Patient has type 2 diabetes."):
 def test_safety_blocked_note_never_reaches_medgemma(monkeypatch):
     posts = []
     monkeypatch.setattr(main.httpx, "Client", lambda timeout=None: FakeClient(posts))
-    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: [_note()])
+    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: ([_note()], None))
     monkeypatch.setattr(main.nemoguard_client, "check_safety", lambda text: False)
 
     called = {"medgemma": False}
@@ -68,7 +68,7 @@ def test_safety_blocked_note_never_reaches_medgemma(monkeypatch):
 def test_successful_extraction_upserts_and_counts_processed(monkeypatch):
     posts = []
     monkeypatch.setattr(main.httpx, "Client", lambda timeout=None: FakeClient(posts))
-    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: [_note()])
+    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: ([_note()], None))
     monkeypatch.setattr(main.nemoguard_client, "check_safety", lambda text: True)
     monkeypatch.setattr(main.medgemma_client, "extract_structured_data", lambda text: {
         "diagnoses": ["E11"], "medications": [], "procedures": [],
@@ -93,7 +93,7 @@ def test_malformed_note_missing_text_counts_as_error_not_crash(monkeypatch):
     posts = []
     monkeypatch.setattr(main.httpx, "Client", lambda timeout=None: FakeClient(posts))
     malformed_note = {"document_reference_id": "doc1", "note_date": "2026-01-01"}  # no "text" key
-    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: [malformed_note, _note("doc2")])
+    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: ([malformed_note, _note("doc2")], None))
     monkeypatch.setattr(main.nemoguard_client, "check_safety", lambda text: True)
     monkeypatch.setattr(main.medgemma_client, "extract_structured_data", lambda text: {
         "diagnoses": [], "medications": [], "procedures": [], "follow_up_recommendations": [], "clinical_risks": [],
@@ -108,10 +108,32 @@ def test_malformed_note_missing_text_counts_as_error_not_crash(monkeypatch):
     assert len(posts) == 1
 
 
+def test_search_failure_is_distinguishable_from_genuinely_zero_notes(monkeypatch):
+    # The real bug this guards against: an Epic auth failure (expired
+    # interactive OAuth token, invalid_grant on refresh) made
+    # _pull_clinical_notes return an empty list identically to a patient
+    # with genuinely zero clinical notes — every real patient showed
+    # "notes_found: 0" during a token outage, indistinguishable from
+    # "confirmed no notes exist." search_error must survive into the
+    # final result even when notes_found is 0.
+    posts = []
+    monkeypatch.setattr(main.httpx, "Client", lambda timeout=None: FakeClient(posts))
+    monkeypatch.setattr(
+        main, "_fetch_clinical_notes",
+        lambda pid: ([], "DocumentReference search unavailable for P001: invalid_grant"),
+    )
+
+    result = main.process_patient("P001")
+
+    assert result["notes_found"] == 0
+    assert result["search_error"] == "DocumentReference search unavailable for P001: invalid_grant"
+    assert posts == []
+
+
 def test_medgemma_failure_counts_as_error_and_continues(monkeypatch):
     posts = []
     monkeypatch.setattr(main.httpx, "Client", lambda timeout=None: FakeClient(posts))
-    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: [_note("doc1"), _note("doc2")])
+    monkeypatch.setattr(main, "_fetch_clinical_notes", lambda pid: ([_note("doc1"), _note("doc2")], None))
     monkeypatch.setattr(main.nemoguard_client, "check_safety", lambda text: True)
 
     def flaky_extract(text):

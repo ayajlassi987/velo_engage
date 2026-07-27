@@ -10,7 +10,7 @@ import yaml
 
 SUPPORTED_METHODS = {"R", "D"}
 SUPPORTED_OPERATORS = {
-    "eq", "ne", "gt", "gte", "lt", "lte", "in", "contains",
+    "eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "contains_prefix",
     "is_null", "not_null", "days_until_between",
 }
 
@@ -124,6 +124,15 @@ def _leaf_matches(condition: dict, features: dict, as_of: date) -> bool:
         return actual in expected
     if operator == "contains":
         return expected in actual
+    if operator == "contains_prefix":
+        # ICD-10 category matching: real Epic condition_codes are stored
+        # at full precision ("E11.9"), while the synthetic seed generator
+        # only ever stores bare 3-character categories ("E11") — plain
+        # "contains" (exact array-element equality) can't match both
+        # representations against the same code list. Family I
+        # (predictive clinical risk) needs "any code in this ICD-10
+        # category" regardless of which representation is present.
+        return any(str(code).startswith(expected) for code in (actual or []))
     return False
 
 

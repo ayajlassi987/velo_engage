@@ -5,6 +5,7 @@ deleted so the existing ~20,000 SYN* patients and their historical
 opportunities/campaigns stay intact for demo/dashboard purposes, but this
 should not be re-run to add more synthetic volume."""
 
+import argparse
 import random
 import uuid
 import json
@@ -30,6 +31,7 @@ PG = dict(
 )
 
 CLINIC_ID = "clinic_alnoor_001"
+PATIENT_PREFIX = "SYN"
 # 5000 -> 20000: the live orchestrator's real (non-synthetic) campaign rows
 # have a near-zero booking rate right now (no real booking attribution
 # wired up yet), so almost all trainable signal for the propensity/value/
@@ -106,7 +108,7 @@ def main():
     print(f"Seeding {N_PATIENTS} synthetic patients...")
 
     for i in range(1, N_PATIENTS + 1):
-        patient_id = f"SYN{i:05d}"
+        patient_id = f"{PATIENT_PREFIX}{i:05d}"
         first = random.choice(FIRST_NAMES)
         last = random.choice(LAST_NAMES)
         age = random.randint(18, 82)
@@ -488,4 +490,21 @@ def main():
 
 
 if __name__ == "__main__":
+    # Defaults match the original hardcoded values exactly — a plain
+    # `python seed_synthetic_phase1.py` with no args is 100% unchanged from
+    # before this was parameterized. Only used with overrides to seed a
+    # *different* clinic's own synthetic population (multi-clinic
+    # productization — see PROJECT_STATUS.md) without touching the existing
+    # ~20,000 clinic_alnoor_001 patients this module's docstring warns not
+    # to regenerate.
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--clinic-id", default=CLINIC_ID)
+    parser.add_argument("--n-patients", type=int, default=N_PATIENTS)
+    parser.add_argument("--patient-prefix", default=PATIENT_PREFIX)
+    args = parser.parse_args()
+
+    CLINIC_ID = args.clinic_id
+    N_PATIENTS = args.n_patients
+    PATIENT_PREFIX = args.patient_prefix
+
     main()

@@ -36,7 +36,7 @@ CLINIC_ID = os.getenv("CLINIC_ID", "clinic_alnoor_001")
 VE_CONNECT_URL = os.getenv("VE_CONNECT_URL")
 
 
-def _fetch_clinical_notes(patient_id: str) -> list[dict]:
+def _fetch_clinical_notes(patient_id: str) -> tuple[list[dict], str | None]:
     if not VE_CONNECT_URL:
         raise RuntimeError(
             "VE_CONNECT_URL is not set — see PROJECT_STATUS.md Part A for the "
@@ -49,7 +49,8 @@ def _fetch_clinical_notes(patient_id: str) -> list[dict]:
     with httpx.Client(timeout=90.0) as client:
         response = client.get(f"{VE_CONNECT_URL}/patients/{patient_id}/clinical-notes")
         response.raise_for_status()
-        return response.json()["notes"]
+        body = response.json()
+        return body["notes"], body.get("search_error")
 
 
 def _upsert_extraction(patient_id: str, note: dict, cleaned: dict, flags: list[str], safety_passed: bool) -> str:
@@ -79,8 +80,11 @@ def process_patient(patient_id: str) -> dict:
     function — only counts and extraction IDs, per the retention decision
     in PROJECT_STATUS.md. Upsert goes through ve_connect's HTTP API, not a
     direct DB connection — see this module's docstring."""
-    notes = _fetch_clinical_notes(patient_id)
-    results = {"patient_id": patient_id, "notes_found": len(notes), "processed": 0, "blocked": 0, "errors": 0, "extraction_ids": []}
+    notes, search_error = _fetch_clinical_notes(patient_id)
+    results = {
+        "patient_id": patient_id, "notes_found": len(notes), "processed": 0,
+        "blocked": 0, "errors": 0, "extraction_ids": [], "search_error": search_error,
+    }
 
     for note in notes:
         # note_text/raw_extraction are scoped entirely to one loop

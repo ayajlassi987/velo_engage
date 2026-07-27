@@ -17,6 +17,7 @@ from temporalio.worker import Worker
 from ve_orchestrator.workflows import DailyEngagementWorkflow
 from ve_orchestrator.activities import (
     pull_epic_data,
+    refresh_historical_features,
     evaluate_rules,
     gate_consent,
     rank_and_assign_holdout,
@@ -38,6 +39,7 @@ async def main():
         workflows=[DailyEngagementWorkflow],
         activities=[
             pull_epic_data,
+            refresh_historical_features,
             evaluate_rules,
             gate_consent,
             rank_and_assign_holdout,
