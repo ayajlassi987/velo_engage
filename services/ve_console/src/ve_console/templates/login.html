@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#123d32">
-  <title>Sign in | Velo Engage</title>
+  <meta name="theme-color" content="#0e2a5c">
+  <title>Sign in | VeloDoc</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', path='/auth.css') }}">
 </head>
 <body class="auth-body">
   <div class="auth-shell">
     <div class="auth-card">
-      <a class="brand auth-brand" href="/login" aria-label="Velo Engage">
-        <span class="brand-mark">VE</span>
-        <span><strong>Velo Engage</strong><small>Clinic growth console</small></span>
+      <a class="brand auth-brand" href="/login" aria-label="VeloDoc">
+        <span class="brand-mark">VD</span>
+        <span><strong>VeloDoc</strong><small>Clinic growth console</small></span>
       </a>
 
       {% if logged_out %}

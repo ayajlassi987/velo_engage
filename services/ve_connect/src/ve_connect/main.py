@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI, BackgroundTasks, Response
 from pydantic import BaseModel
 from ve_connect.auth import router as auth_router, _db, epic_configuration_status
-from ve_connect.adapter import pull_patient_cohort, _pull_clinical_notes, upsert_clinical_extraction
+from ve_connect.adapter import pull_patient_cohort, _pull_clinical_notes, pull_raw_resources, upsert_clinical_extraction
 from ve_connect.epic_bulk import run_bulk_export
 import os
 from datetime import datetime, timezone
@@ -37,6 +37,19 @@ async def pull_bulk_sync(group_id: str | None = None):
     except Exception as exc:
         logging.getLogger(__name__).error(f"Synchronous bulk pull failed: {exc}", exc_info=True)
         return {"status": "failed", "error": str(exc)}
+
+
+@app.get("/patients/{patient_id}/raw")
+async def patient_raw(patient_id: str):
+    """Diagnostic-only: the exact raw FHIR resources pulled for a patient,
+    before map_patient_to_features() maps/derives anything from them — see
+    adapter.py's pull_raw_resources() for why this exists and what it does
+    and doesn't persist (nothing; same discipline as /clinical-notes below)."""
+    try:
+        return {"patient_id": patient_id, "resources": pull_raw_resources(patient_id)}
+    except Exception as exc:
+        logging.getLogger(__name__).warning(f"Raw resource pull failed for {patient_id}: {exc}")
+        return {"patient_id": patient_id, "resources": None, "error": str(exc)}
 
 
 @app.get("/patients/{patient_id}/clinical-notes")

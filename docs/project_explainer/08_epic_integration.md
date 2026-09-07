@@ -28,6 +28,29 @@ succeeding, because they're unrelated credentials with unrelated lifetimes.
 Anyone debugging an Epic connectivity issue needs to know which of the two
 flows is actually failing before chasing the wrong one.
 
+Epic's non-production sandbox refresh tokens have their own fixed lifetime,
+independent of how recently they've been used — so the interactive flow's
+refresh token dying (`invalid_grant`) and requiring a fresh `/auth/login`
+is a real, recurring, expected characteristic of testing against a sandbox
+app, not a bug to chase.
+
+### Reaching `/auth/login` from outside — the ngrok tunnel-sharing problem
+
+Epic requires an exact-match `redirect_uri`, registered as one bare ngrok
+domain with no path (`EPIC_REDIRECT_URI`). That's the same public domain
+`docker-compose.dev.yml`'s `ngrok` service tunnels to `ve_reach` for
+WhatsApp webhooks (`07_communication_channels.md`) — ngrok's free tier only
+grants one reserved domain, so both purposes have to share it. `ve_reach`
+has three proxy routes for exactly this (`main.py`): `/auth/login`,
+`/auth/callback`, and `/` all forward to `ve_connect:8000`'s real handlers
+over the internal Docker network and relay the response back — `/auth/login`
+relays Epic's redirect Location header, the callback routes forward
+`code`/`state` and relay `ve_connect`'s JSON response verbatim (success or
+error status). This means the one public tunnel serves both purposes
+permanently; re-authorizing the interactive flow is just opening
+`https://<ngrok-domain>/auth/login` in a browser, no tunnel reconfiguration
+needed.
+
 ## The Bulk Data Export path (`epic_bulk.py`)
 
 `run_bulk_export(group_id)`: kicks off a `$export` request against a Group
@@ -64,6 +87,31 @@ no-error-thrown failure that's easy to miss:
   `open_treatment_plan_flag` to `False` for that patient rather than
   blocking the other resource types (which do work) from being pulled at
   all.
+
+## Seeing the raw pull before anything is mapped
+
+Every Epic FHIR resource fetched here (`Patient`, `Condition`, `Encounter`,
+`Procedure`, `CarePlan`, `Coverage`) gets fed straight into
+`map_patient_to_features()` and discarded — the raw JSON was never
+persisted or exposed anywhere, matching the same no-raw-retention
+discipline as clinical notes (file 9). `GET /patients/{id}/raw`
+(`adapter.py`'s `pull_raw_resources()`) exists purely as a diagnostic: it
+calls the *exact same* fetch functions with the *exact same* search
+parameters as `_resolve_and_upsert()` (the real pipeline's per-patient
+resolve step), so what it returns is genuinely what the pipeline sees —
+not a separate or different pull — and, like the clinical-notes endpoint,
+it writes nothing to Postgres or disk; the response body is the only place
+this data ever exists on this machine.
+
+This surfaced something worth knowing when actually looking at it: several
+of the real Epic sandbox patients' `DocumentReference` notes turned out to
+be sandbox connectivity-test filler (`"Test note from fhir-template
+sandbox verification. Not clinical content."`) or literal repeated-
+character load-test artifacts, not real documentation — explaining why
+MedGemma extraction (file 9) sometimes correctly returns empty results for
+a given note. That's the sandbox's data quality, not a bug in extraction —
+confirmed by checking the actual note text via this same read path before
+concluding anything was broken.
 
 ## `adapter.py` — the actual write path into Postgres
 

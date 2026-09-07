@@ -40,13 +40,19 @@ the last:
 9. [`09_clinical_note_intelligence.md`](09_clinical_note_intelligence.md) —
    MedGemma + NemoGuard structured extraction from clinical notes.
 10. [`10_console_ui.md`](10_console_ui.md) — the web app clinic staff
-    actually look at.
+    actually look at (read [`14_react_frontend.md`](14_react_frontend.md)
+    right after this one for the React SPA that now also serves every page
+    here, alongside the original server-rendered version).
 11. [`11_multi_clinic.md`](11_multi_clinic.md) — how one deployment serves
     more than one clinic without data leaking between them.
 12. [`12_data_model.md`](12_data_model.md) — every table, what it's for, how
     it connects to the others.
 13. [`13_known_gaps_and_roadmap.md`](13_known_gaps_and_roadmap.md) — what's
     genuinely not done, why, and what would unblock it.
+14. [`14_react_frontend.md`](14_react_frontend.md) — the React frontend's
+    architecture: build pipeline, component structure, the JSON API layer,
+    and how it was migrated page-by-page without ever touching the
+    original app's behavior.
 
 ## The one-paragraph version
 

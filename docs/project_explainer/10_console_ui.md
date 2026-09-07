@@ -4,8 +4,29 @@
 
 The web app clinic staff and owners actually look at — every other
 document in this folder describes machinery that runs invisibly; this is
-where it becomes visible and actionable. FastAPI + server-rendered Jinja
-templates (no separate frontend framework/build step).
+where it becomes visible and actionable.
+
+## Two frontends, same backend, same look — by design
+
+Every page listed below is now served by a React SPA (`services/ve_console/
+frontend/`, mounted at `/app`) that calls a parallel set of JSON endpoints
+(`/api/v1/*`). The **original server-rendered Jinja templates still exist,
+unchanged, at their original routes** — nothing was deleted or rewired.
+Each JSON endpoint reuses the *exact same* data-fetch function the Jinja
+route already called (e.g. `_overview_data()`, `_campaigns_data()` in
+`main.py`) — extracted once, called by both, so there's one source of
+truth per page regardless of which frontend renders it. The `/api/v1/campaigns/
+{id}/outcome` mutation similarly shares its write logic
+(`_mark_campaign_outcome()`) with the original HTML form endpoint.
+
+Both frontends use the identical CSS (`theme.css` in the React app is the
+same stylesheet as `static/styles.css`) — same classes, same components,
+same blue theme — so a React page and its Jinja equivalent are visually
+indistinguishable. Auth is unchanged too: React never handles a token
+itself, it just calls the API with `credentials: "include"`, riding the
+same Keycloak session cookie the Jinja pages already use. See file 14 for
+the full React architecture — build pipeline, component structure,
+routing, and why each of those decisions was made.
 
 ## Pages
 
@@ -39,14 +60,35 @@ claim) vs. `KEYCLOAK_ISSUER_INTERNAL` (what this container uses to reach
 Keycloak directly over the Docker network — `localhost` from inside the
 container wouldn't reach the Keycloak container).
 
-## "Live" refresh, without a frontend framework
+## "Live" refresh — two implementations, same behavior
 
-`static/app.js`: every 15 seconds, re-fetches the current page's own URL
-with header `X-VE-Live-Refresh: 1`, and the server (`main.py`'s `render()`)
-responds with just the data fragment needed rather than a full page,
-avoiding a full reload. A pragmatic way to get "live-updating dashboard"
-behavior out of a server-rendered app without adopting React/Vue/a
-websocket layer for what's fundamentally a periodic-poll use case.
+The Jinja pages' version (`static/app.js`): every 15 seconds, re-fetches
+the current page's own URL with header `X-VE-Live-Refresh: 1`, and the
+server (`main.py`'s `render()`) responds with just the data fragment
+needed rather than a full page. This predates the React migration (file
+14) — a pragmatic way to get "live-updating dashboard" behavior out of a
+server-rendered app before there was a JSON API to poll instead. The React
+version (`useLiveRefresh` hook) reimplements the identical cadence and
+pause-when-hidden/pause-while-typing behavior against the new `/api/v1/*`
+JSON endpoints — see file 14 for why both had to match exactly.
+
+## Rebrand: VeloDoc
+
+The console's user-facing brand is **VeloDoc** (sidebar, page titles,
+login screen, browser theme-color) — distinct from "Velo Engage," which
+stays the name of the overall project/platform (repo name, service names
+like `ve_orchestrator`, this documentation folder's own narrative). Only
+static UI chrome was rebranded; the per-clinic name shown throughout the
+console (`{{ clinic_name }}` / `session.clinic.name` — "Al Noor Clinic,"
+"Riverside Dental Group") is real tenant data and was deliberately left
+alone, since conflating a customer's clinic name with the platform's own
+brand would undo the multi-clinic work in file 11. Also shipped in the
+same pass: a full blue color palette (`--brand`/`--brand-dark`/
+`--brand-soft`/`--brand-bright` in `theme.css`) replacing the earlier
+green-based chrome, while deliberately *not* touching status-semantic
+colors (green still means done/healthy/attended, amber still holdout/
+warning, coral still failed/opt-out) — overriding those to match the new
+brand color would have made the UI harder to read, not more modern.
 
 ## Manual outcome marking
 
@@ -90,10 +132,15 @@ a SHAP breakdown for the no-show score specifically were ever shown.
 
 ## Why this design
 
-- **Server-rendered, not a SPA.** This console is read-mostly with a
-  handful of simple mutations (outcome marking) — a full frontend build
-  pipeline would be disproportionate machinery for what a 15-second poll
-  and server-side templating already handles well.
+- **Server-rendered first, React added later — not a contradiction.**
+  The original design was deliberately *not* a SPA: this console started
+  as read-mostly with a handful of simple mutations, and a full frontend
+  build pipeline would have been disproportionate machinery for what a
+  15-second poll and server-side templating already handled well. That
+  calculus changed when a modern, more polished UI became an explicit
+  goal in its own right (file 14) — at that point a proper component
+  framework earned its cost. The original reasoning wasn't wrong for what
+  it was optimizing for at the time; the goal changed, not the analysis.
 - **Owner/admin tiers, not a single flat "logged in" gate.** Revenue and
   the causal holdout results are commercially/statistically sensitive in a
   way opportunity/campaign browsing isn't — worth a real role boundary,

@@ -10,7 +10,7 @@ import httpx
 load_dotenv()
 
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 from ve_reach.subscriber import start_subscriber, _attempt_sms_fallback
 from ve_reach.db import (
@@ -65,6 +65,51 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ve_reach", lifespan=lifespan)
+
+# Epic's registered redirect_uri for this app is one bare ngrok domain with
+# no path (see ve_connect/auth.py's callback() docstring) — Epic requires an
+# exact match, and ngrok's free tier only grants one reserved domain, so
+# that single domain has to serve both WhatsApp webhooks (this service,
+# natively) and Epic's OAuth login/callback (ve_connect's real handlers) at
+# once. Before this, the two purposes required manually stopping this
+# service's tunnel and standing up a temporary one pointed at ve_connect
+# every time the Epic sandbox token needed re-authorizing, then swapping
+# back — a real recurring chore, and a real risk of forgetting to swap back
+# and silently losing WhatsApp delivery-status webhooks. These three routes
+# forward to ve_connect's actual handlers instead, so the one tunnel serves
+# both permanently.
+VE_CONNECT_URL = os.getenv("VE_CONNECT_URL", "http://ve_connect:8000")
+
+
+@app.get("/auth/login")
+async def proxy_epic_login():
+    async with httpx.AsyncClient(follow_redirects=False, timeout=15.0) as client:
+        resp = await client.get(f"{VE_CONNECT_URL}/auth/login")
+    # ve_connect's handler returns a redirect straight to Epic's own
+    # authorize URL (computed entirely from Epic settings, not ve_connect's
+    # own address) — relaying just the Location header and status is
+    # sufficient, no need to touch the rest of the response.
+    return RedirectResponse(resp.headers["location"], status_code=resp.status_code)
+
+
+async def _proxy_epic_callback(code: str, state: str) -> JSONResponse:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{VE_CONNECT_URL}/auth/callback", params={"code": code, "state": state}
+        )
+    return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+
+@app.get("/auth/callback")
+async def proxy_epic_callback(code: str, state: str):
+    return await _proxy_epic_callback(code, state)
+
+
+@app.get("/")
+async def proxy_epic_root(code: str, state: str):
+    # Mirrors ve_connect's own dual /auth/callback + "/" registration — see
+    # that docstring for why Epic's redirect can land on the bare root path.
+    return await _proxy_epic_callback(code, state)
 
 
 def _message_text(message: dict) -> str | None:

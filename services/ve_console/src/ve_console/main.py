@@ -11,7 +11,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -42,11 +42,38 @@ CLINIC_ID = os.getenv("CLINIC_ID", "clinic_alnoor_001")
 CLINIC_NAME = os.getenv("CLINIC_NAME", "Al Noor Clinic")
 MESSAGE_COST = Decimal(os.getenv("MESSAGE_COST", "0.05"))
 
-app = FastAPI(title="VE Console", docs_url="/api/docs", redoc_url=None)
+app = FastAPI(title="VeloDoc Console", docs_url="/api/docs", redoc_url=None)
 app.mount("/static", StaticFiles(directory=PACKAGE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
 
 app.include_router(auth_router)
+
+# The incrementally-migrated React frontend (services/ve_console/frontend/,
+# built via `npm run build` into react_dist/ — see that project's
+# vite.config.ts). Mounted at /app, entirely additive: every route above
+# and below this block is a pre-existing Jinja page, completely untouched.
+# require_login's middleware already gates /app/* exactly like any other
+# page (it's not in PUBLIC_PATHS and doesn't start with /static/), so this
+# needs no auth logic of its own.
+REACT_DIST = PACKAGE_DIR / "react_dist"
+if (REACT_DIST / "assets").is_dir():
+    app.mount("/app/assets", StaticFiles(directory=REACT_DIST / "assets"), name="react_assets")
+
+    @app.get("/app/favicon.svg", include_in_schema=False)
+    def react_favicon():
+        return FileResponse(REACT_DIST / "favicon.svg")
+
+    @app.get("/app/icons.svg", include_in_schema=False)
+    def react_icons():
+        return FileResponse(REACT_DIST / "icons.svg")
+
+    @app.get("/app", include_in_schema=False)
+    @app.get("/app/{path:path}", include_in_schema=False)
+    def react_app(path: str = ""):
+        # One HTML shell for every React Router route (client-side routing
+        # picks the right page from the URL) — same pattern any SPA behind
+        # a real backend uses for direct loads/refreshes of a deep link.
+        return FileResponse(REACT_DIST / "index.html")
 
 
 @app.middleware("http")
@@ -54,6 +81,16 @@ async def require_login(request: Request, call_next):
     if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/static/"):
         return await call_next(request)
     if not request.session.get("user"):
+        # A browser redirect is correct for every HTML page — but a JSON
+        # fetch() call (the React frontend, services/ve_console/frontend/)
+        # would otherwise silently follow the redirect and try to parse the
+        # login page's HTML as JSON. /api/summary already relies on this
+        # middleware for its own auth and is only ever called from an
+        # already-authenticated page, so this changes no currently-exercised
+        # behavior for it — only adds a clean signal for the new /api/v1/*
+        # routes the unauthenticated case never previously had to handle.
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": "Not signed in"}, status_code=401)
         return RedirectResponse(f"/login?next={request.url.path}")
     return await call_next(request)
 
@@ -250,9 +287,12 @@ def root():
     return RedirectResponse("/overview")
 
 
-@app.get("/overview")
-def overview(request: Request):
-    clinic_id = _clinic_id(request)
+def _overview_data(clinic_id: str) -> dict:
+    """Pure data-fetch for the Overview page — extracted so the existing
+    HTML route and the new JSON API route (for the React migration, see
+    frontend/) call the exact same query logic instead of duplicating it.
+    No behavior change to the HTML route: this is the same code that used
+    to live directly inside overview()."""
     metrics = overview_metrics(clinic_id)
     spend = Decimal(metrics["dispatched"] or 0) * MESSAGE_COST
     metrics["spend"] = spend
@@ -307,23 +347,22 @@ def overview(request: Request):
         ORDER BY received_at DESC LIMIT 5
         """
     )
+    return {
+        "metrics": metrics, "funnel": funnel, "funnel_max": funnel_max,
+        "recent_campaigns": recent_campaigns, "recent_inbound": recent_inbound,
+    }
+
+
+@app.get("/overview")
+def overview(request: Request):
+    data = _overview_data(_clinic_id(request))
     return render(
         request, "overview.html", active="overview", title="Clinic performance",
-        subtitle="From identified opportunity to recovered revenue.", metrics=metrics,
-        funnel=funnel, funnel_max=funnel_max, recent_campaigns=recent_campaigns,
-        recent_inbound=recent_inbound,
+        subtitle="From identified opportunity to recovered revenue.", **data,
     )
 
 
-@app.get("/opportunities")
-def opportunities(
-    request: Request,
-    q: str = "",
-    family: str = "all",
-    status: str = "all",
-    limit: int = Query(100, ge=20, le=200),
-):
-    clinic_id = _clinic_id(request)
+def _opportunities_data(clinic_id: str, q: str, family: str, status: str, limit: int) -> dict:
     conditions = ["o.clinic_id=%s", _real_opportunity("o")]
     params = [clinic_id]
     if q:
@@ -384,12 +423,25 @@ def opportunities(
             (clinic_id,),
         )
     ]
+    return {
+        "rows": rows, "summary": summary,
+        "filters": {"q": q, "family": family, "status": status}, "families": families,
+    }
+
+
+@app.get("/opportunities")
+def opportunities(
+    request: Request,
+    q: str = "",
+    family: str = "all",
+    status: str = "all",
+    limit: int = Query(100, ge=20, le=200),
+):
+    data = _opportunities_data(_clinic_id(request), q, family, status, limit)
     return render(
         request, "list.html", active="opportunities", title="Opportunities",
-        subtitle="Patients currently eligible for clinic engagement.", rows=rows,
-        summary=summary, filters={"q": q, "family": family, "status": status},
-        families=families,
-        filter_kind="opportunities",
+        subtitle="Patients currently eligible for clinic engagement.",
+        filter_kind="opportunities", **data,
         columns=[
             ("patient_id", "Patient", "text"), ("family", "Family", "family"),
             ("rule_name", "Reason", "text"), ("priority_score", "Priority", "score"),
@@ -399,15 +451,15 @@ def opportunities(
     )
 
 
-@app.get("/campaigns")
-def campaigns(
-    request: Request,
-    q: str = "",
-    arm: str = "all",
-    status: str = "all",
+@app.get("/api/v1/opportunities")
+def api_opportunities(
+    request: Request, q: str = "", family: str = "all", status: str = "all",
     limit: int = Query(100, ge=20, le=200),
 ):
-    clinic_id = _clinic_id(request)
+    return _json_safe(_opportunities_data(_clinic_id(request), q, family, status, limit))
+
+
+def _campaigns_data(clinic_id: str, q: str, arm: str, status: str, limit: int) -> dict:
     conditions = ["c.clinic_id=%s", _real_campaign("c")]
     params = [clinic_id]
     if q:
@@ -462,11 +514,22 @@ def campaigns(
         """,
         (clinic_id,),
     )
+    return {"rows": rows, "summary": summary, "filters": {"q": q, "arm": arm, "status": status}}
+
+
+@app.get("/campaigns")
+def campaigns(
+    request: Request,
+    q: str = "",
+    arm: str = "all",
+    status: str = "all",
+    limit: int = Query(100, ge=20, le=200),
+):
+    data = _campaigns_data(_clinic_id(request), q, arm, status, limit)
     return render(
         request, "list.html", active="campaigns", title="Campaigns",
-        subtitle="Treatment allocation and campaign execution status.", rows=rows,
-        summary=summary, filters={"q": q, "arm": arm, "status": status},
-        filter_kind="campaigns",
+        subtitle="Treatment allocation and campaign execution status.",
+        filter_kind="campaigns", **data,
         columns=[
             ("campaign_id", "Campaign", "campaign"), ("patient_id", "Patient", "text"),
             ("family", "Family", "family"), ("treatment_arm", "Arm", "badge"),
@@ -474,6 +537,14 @@ def campaigns(
             ("dispatched_at", "Sent", "datetime"), ("revenue", "Revenue", "money"),
         ],
     )
+
+
+@app.get("/api/v1/campaigns")
+def api_campaigns(
+    request: Request, q: str = "", arm: str = "all", status: str = "all",
+    limit: int = Query(100, ge=20, le=200),
+):
+    return _json_safe(_campaigns_data(_clinic_id(request), q, arm, status, limit))
 
 
 @app.get("/campaigns/{campaign_id}")
@@ -486,6 +557,16 @@ def campaign_detail(request: Request, campaign_id: str):
     # belonging to a *different* clinic identically to "doesn't exist"
     # (404, not 403) — same information-disclosure discipline as any
     # other multi-tenant resource lookup.
+    data = _campaign_detail_data(clinic_id, campaign_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return render(
+        request, "campaign_detail.html", active="campaigns", title="Campaign journey",
+        subtitle=f"Patient {data['campaign']['patient_id']} · {campaign_id}", **data,
+    )
+
+
+def _campaign_detail_data(clinic_id: str, campaign_id: str) -> dict | None:
     campaign = one(
         """
         SELECT c.*, o.priority_score, o.rule_name, o.rule_evidence,
@@ -505,7 +586,7 @@ def campaign_detail(request: Request, campaign_id: str):
         (campaign_id, clinic_id),
     )
     if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+        return None
     messages = query(
         "SELECT wa_message_id,created_at FROM wa_message_map WHERE campaign_id=%s ORDER BY created_at",
         (campaign_id,),
@@ -536,24 +617,28 @@ def campaign_detail(request: Request, campaign_id: str):
                 explanation = explain_patient(dict(features))
             except Exception:
                 explanation = None
-    return render(
-        request, "campaign_detail.html", active="campaigns", title="Campaign journey",
-        subtitle=f"Patient {campaign['patient_id']} · {campaign_id}", campaign=campaign,
-        messages=messages, inbound=inbound, bookings=bookings, revenues=revenues,
-        explanation=explanation,
-    )
+    return {
+        "campaign": campaign, "messages": messages, "inbound": inbound,
+        "bookings": bookings, "revenues": revenues, "explanation": explanation,
+    }
 
 
-@app.post("/campaigns/{campaign_id}/outcome")
-def mark_campaign_outcome(
-    request: Request, campaign_id: str, stage: str = Form(...), amount: str = Form("")
-):
+@app.get("/api/v1/campaigns/{campaign_id}")
+def api_campaign_detail(request: Request, campaign_id: str):
+    data = _campaign_detail_data(_clinic_id(request), campaign_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return _json_safe(data)
+
+
+def _mark_campaign_outcome(clinic_id: str, campaign_id: str, stage: str, amount: str) -> None:
     # Coordinators use this when a patient calls in or shows up outside the
     # system's own channels (e.g. Epic booking isn't wired up yet for real
     # patients — see PROJECT_STATUS.md). Same clinic-scoping discipline as
     # campaign_detail: a real campaign belonging to another clinic is
-    # treated as "doesn't exist", not editable by guessing its ID.
-    clinic_id = _clinic_id(request)
+    # treated as "doesn't exist", not editable by guessing its ID. Shared by
+    # both the HTML form route (redirects) and the JSON API route (used by
+    # the React frontend) so the write logic has exactly one copy.
     if stage not in ("booked", "attended"):
         raise HTTPException(status_code=400, detail="stage must be 'booked' or 'attended'")
     campaign = one(
@@ -653,12 +738,25 @@ def mark_campaign_outcome(
             """,
             {"campaign_id": campaign_id, "patient_id": patient_id},
         )
+
+
+@app.post("/campaigns/{campaign_id}/outcome")
+def mark_campaign_outcome(
+    request: Request, campaign_id: str, stage: str = Form(...), amount: str = Form("")
+):
+    _mark_campaign_outcome(_clinic_id(request), campaign_id, stage, amount)
     return RedirectResponse(url=f"/campaigns/{campaign_id}", status_code=303)
 
 
-@app.get("/whatsapp")
-def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
-    clinic_id = _clinic_id(request)
+@app.post("/api/v1/campaigns/{campaign_id}/outcome")
+def api_mark_campaign_outcome(
+    request: Request, campaign_id: str, stage: str = Form(...), amount: str = Form("")
+):
+    _mark_campaign_outcome(_clinic_id(request), campaign_id, stage, amount)
+    return _json_safe(_campaign_detail_data(_clinic_id(request), campaign_id))
+
+
+def _whatsapp_data(clinic_id: str, q: str) -> dict:
     search = f"%{q}%"
     outbound = query(
         f"""
@@ -735,16 +833,25 @@ def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
         """,
         (clinic_id, clinic_id),
     )
+    return {"outbound": outbound, "inbound": inbound, "summary": summary}
+
+
+@app.get("/whatsapp")
+def whatsapp(request: Request, q: str = "", tab: str = "outbound"):
+    data = _whatsapp_data(_clinic_id(request), q)
     return render(
         request, "whatsapp.html", active="whatsapp", title="WhatsApp",
-        subtitle="Outbound delivery and inbound patient conversations.", outbound=outbound,
-        inbound=inbound, summary=summary, q=q, tab=tab,
+        subtitle="Outbound delivery and inbound patient conversations.",
+        q=q, tab=tab, **data,
     )
 
 
-@app.get("/whatsapp/messages/{wa_message_id}", name="message_detail")
-def message_detail(request: Request, wa_message_id: str):
-    clinic_id = _clinic_id(request)
+@app.get("/api/v1/whatsapp")
+def api_whatsapp(request: Request, q: str = ""):
+    return _json_safe(_whatsapp_data(_clinic_id(request), q))
+
+
+def _message_detail_data(clinic_id: str, wa_message_id: str) -> dict | None:
     message = one(
         """
         SELECT om.*, c.family, c.treatment_arm,
@@ -759,7 +866,7 @@ def message_detail(request: Request, wa_message_id: str):
         (wa_message_id, clinic_id),
     )
     if not message:
-        raise HTTPException(status_code=404, detail="WhatsApp message not found")
+        return None
 
     inbound = query(
         """
@@ -788,15 +895,32 @@ def message_detail(request: Request, wa_message_id: str):
     delivered = message["status"] in ("delivered", "read") or message["campaign_delivered"]
     read = message["status"] == "read" or message["campaign_read"]
     replied = message["replied"] or message["campaign_replied"]
+    return {
+        "message": message, "inbound": inbound,
+        "delivered": delivered, "read": read, "replied": replied,
+    }
+
+
+@app.get("/whatsapp/messages/{wa_message_id}", name="message_detail")
+def message_detail(request: Request, wa_message_id: str):
+    data = _message_detail_data(_clinic_id(request), wa_message_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="WhatsApp message not found")
     return render(
         request, "message_detail.html", active="whatsapp", title="WhatsApp message",
-        subtitle=f"Recipient {message['recipient_e164']}", message=message,
-        inbound=inbound, delivered=delivered, read=read, replied=replied,
+        subtitle=f"Recipient {data['message']['recipient_e164']}", **data,
     )
 
 
-@app.get("/clinical-summaries")
-def clinical_summaries(request: Request, q: str = "", limit: int = 100):
+@app.get("/api/v1/whatsapp/messages/{wa_message_id}")
+def api_message_detail(request: Request, wa_message_id: str):
+    data = _message_detail_data(_clinic_id(request), wa_message_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="WhatsApp message not found")
+    return _json_safe(data)
+
+
+def _clinical_summaries_data(clinic_id: str, q: str, limit: int) -> dict:
     """Task 2 (MedGemma + NemoGuard clinical note intelligence). Only
     structured extraction output is ever stored (see
     infra/migrations/014_clinical_extractions.sql) — no raw clinical note
@@ -805,7 +929,6 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
     same "honest gap" pattern as /models' insufficient_data states —
     the presence of flags means a human should double-check that row, not
     that anything failed silently."""
-    clinic_id = _clinic_id(request)
     conditions = ["clinic_id=%s"]
     params = [clinic_id]
     if q:
@@ -832,10 +955,16 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
         """,
         (clinic_id,),
     )
+    return {"rows": rows, "summary": summary, "filters": {"q": q}}
+
+
+@app.get("/clinical-summaries")
+def clinical_summaries(request: Request, q: str = "", limit: int = 100):
+    data = _clinical_summaries_data(_clinic_id(request), q, limit)
     return render(
         request, "list.html", active="clinical-summaries", title="Clinical summaries",
         subtitle="Structured extractions from clinical notes (MedGemma + NemoGuard) — no raw note text is ever stored.",
-        rows=rows, summary=summary, filters={"q": q}, filter_kind="clinical-summaries",
+        filter_kind="clinical-summaries", **data,
         columns=[
             ("patient_id", "Patient", "text"), ("diagnoses", "Diagnoses", "list"),
             ("medications", "Medications", "list"), ("procedures", "Procedures", "list"),
@@ -845,9 +974,12 @@ def clinical_summaries(request: Request, q: str = "", limit: int = 100):
     )
 
 
-@app.get("/bookings")
-def bookings(request: Request, q: str = "", status: str = "all", limit: int = 100):
-    clinic_id = _clinic_id(request)
+@app.get("/api/v1/clinical-summaries")
+def api_clinical_summaries(request: Request, q: str = "", limit: int = 100):
+    return _json_safe(_clinical_summaries_data(_clinic_id(request), q, limit))
+
+
+def _bookings_data(clinic_id: str, q: str, status: str, limit: int) -> dict:
     conditions = ["b.clinic_id=%s", _real_or_unattributed_campaign("b")]
     params = [clinic_id]
     if q:
@@ -877,10 +1009,16 @@ def bookings(request: Request, q: str = "", status: str = "all", limit: int = 10
         """,
         (clinic_id,),
     )
+    return {"rows": rows, "summary": summary, "filters": {"q": q, "status": status}}
+
+
+@app.get("/bookings")
+def bookings(request: Request, q: str = "", status: str = "all", limit: int = 100):
+    data = _bookings_data(_clinic_id(request), q, status, limit)
     return render(
         request, "list.html", active="bookings", title="Bookings",
-        subtitle="Appointments attributed to engagement campaigns.", rows=rows,
-        summary=summary, filters={"q": q, "status": status}, filter_kind="bookings",
+        subtitle="Appointments attributed to engagement campaigns.",
+        filter_kind="bookings", **data,
         columns=[
             ("booking_id", "Booking", "mono"), ("patient_id", "Patient", "text"),
             ("appointment_date", "Appointment", "datetime"), ("status", "Status", "badge"),
@@ -889,9 +1027,12 @@ def bookings(request: Request, q: str = "", status: str = "all", limit: int = 10
     )
 
 
-@app.get("/revenue")
-def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100, _owner=Depends(require_owner)):
-    clinic_id = _clinic_id(request)
+@app.get("/api/v1/bookings")
+def api_bookings(request: Request, q: str = "", status: str = "all", limit: int = 100):
+    return _json_safe(_bookings_data(_clinic_id(request), q, status, limit))
+
+
+def _revenue_data(clinic_id: str, q: str, state: str, limit: int) -> dict:
     conditions = ["r.clinic_id=%s", _real_or_unattributed_campaign("r")]
     params = [clinic_id]
     if q:
@@ -927,10 +1068,16 @@ def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100,
     spend = Decimal(dispatched) * MESSAGE_COST
     summary["spend"] = spend
     summary["roi"] = ((summary["recovered"] - spend) / spend * 100) if spend else 0
+    return {"rows": rows, "summary": summary, "filters": {"q": q, "state": state}}
+
+
+@app.get("/revenue")
+def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100, _owner=Depends(require_owner)):
+    data = _revenue_data(_clinic_id(request), q, state, limit)
     return render(
         request, "list.html", active="revenue", title="Recovered revenue",
-        subtitle="Paid billing linked back to campaign-attributed bookings.", rows=rows,
-        summary=summary, filters={"q": q, "state": state}, filter_kind="revenue",
+        subtitle="Paid billing linked back to campaign-attributed bookings.",
+        filter_kind="revenue", **data,
         columns=[
             ("invoice_id", "Invoice", "mono"), ("patient_id", "Patient", "text"),
             ("amount", "Amount", "money_with_currency"), ("paid", "Payment", "paid"),
@@ -940,9 +1087,15 @@ def revenue(request: Request, q: str = "", state: str = "all", limit: int = 100,
     )
 
 
-@app.get("/holdout")
-def holdout(request: Request, _owner=Depends(require_owner)):
-    clinic_id = _clinic_id(request)
+@app.get("/api/v1/revenue")
+def api_revenue(
+    request: Request, q: str = "", state: str = "all", limit: int = 100,
+    _owner=Depends(require_owner),
+):
+    return _json_safe(_revenue_data(_clinic_id(request), q, state, limit))
+
+
+def _holdout_data(clinic_id: str) -> dict:
     rows = query(
         f"""
         SELECT c.treatment_arm,COUNT(*) campaigns,
@@ -972,11 +1125,21 @@ def holdout(request: Request, _owner=Depends(require_owner)):
             (clinic_id,),
         ),
     }
+    return {"rows": rows, "stats": stats}
+
+
+@app.get("/holdout")
+def holdout(request: Request, _owner=Depends(require_owner)):
+    data = _holdout_data(_clinic_id(request))
     return render(
         request, "holdout.html", active="holdout", title="Holdout analysis",
-        subtitle="Causal comparison of treated and naturally converting patients.",
-        rows=rows, stats=stats,
+        subtitle="Causal comparison of treated and naturally converting patients.", **data,
     )
+
+
+@app.get("/api/v1/holdout")
+def api_holdout(request: Request, _owner=Depends(require_owner)):
+    return _json_safe(_holdout_data(_clinic_id(request)))
 
 
 # One entry per registered MLflow model. score_column is the campaigns
@@ -1085,9 +1248,7 @@ def _model_quality(clinic_id: str, model_name: str, cohort_sql: str) -> dict | N
     return compute_classification_metrics(scores, labels)
 
 
-@app.get("/models")
-def models(request: Request, _admin=Depends(require_admin)):
-    clinic_id = _clinic_id(request)
+def _models_data(clinic_id: str) -> dict:
     versions = query(
         """
         SELECT mv.name,mv.version,mv.creation_time AS creation_timestamp,
@@ -1131,12 +1292,24 @@ def models(request: Request, _admin=Depends(require_admin)):
 
     feature_drift = {column: _feature_drift(clinic_id, column) for column in FEATURE_DRIFT_COLUMNS}
 
+    return {
+        "model_cards": model_cards, "versions": versions, "mlflow_url": "http://localhost:5000",
+        "feature_drift": feature_drift, "alerts": _model_alerts(clinic_id),
+    }
+
+
+@app.get("/models")
+def models(request: Request, _admin=Depends(require_admin)):
+    data = _models_data(_clinic_id(request))
     return render(
         request, "models.html", active="models", title="ML models",
-        subtitle="Training runs, registered versions, and drift across every model.",
-        model_cards=model_cards, versions=versions, mlflow_url="http://localhost:5000",
-        feature_drift=feature_drift, alerts=_model_alerts(clinic_id),
+        subtitle="Training runs, registered versions, and drift across every model.", **data,
     )
+
+
+@app.get("/api/v1/models")
+def api_models(request: Request, _admin=Depends(require_admin)):
+    return _json_safe(_models_data(_clinic_id(request)))
 
 
 def _model_alerts(clinic_id: str) -> list[dict]:
@@ -1180,8 +1353,7 @@ def tcp_health(host: str, port: int):
         return False
 
 
-@app.get("/operations")
-def operations(request: Request, _admin=Depends(require_admin)):
+def _operations_data(clinic_id: str) -> dict:
     services = [
         {"name": "Postgres", "role": "Clinical and campaign data", "ok": tcp_health("postgres", 5432), "url": None},
         {"name": "NATS JetStream", "role": "Campaign and event messaging", "ok": http_health("http://nats:8222/healthz"), "url": "http://localhost:8222"},
@@ -1191,17 +1363,69 @@ def operations(request: Request, _admin=Depends(require_admin)):
         {"name": "Keycloak", "role": "Identity and access", "ok": http_health("http://keycloak:8080/realms/master"), "url": "http://localhost:8081"},
         {"name": "Vault", "role": "Secrets management", "ok": http_health("http://vault:8200/v1/sys/health"), "url": "http://localhost:8200"},
     ]
+    return {
+        "services": services, "healthy": sum(service["ok"] for service in services),
+        "alerts": _model_alerts(clinic_id),
+    }
+
+
+@app.get("/operations")
+def operations(request: Request, _admin=Depends(require_admin)):
+    data = _operations_data(_clinic_id(request))
     return render(
         request, "operations.html", active="operations", title="System operations",
-        subtitle="Live connectivity across the Velo Engage platform.", services=services,
-        healthy=sum(service["ok"] for service in services), alerts=_model_alerts(_clinic_id(request)),
+        subtitle="Live connectivity across the VeloDoc platform.", **data,
     )
+
+
+@app.get("/api/v1/operations")
+def api_operations(request: Request, _admin=Depends(require_admin)):
+    return _json_safe(_operations_data(_clinic_id(request)))
 
 
 @app.get("/api/summary")
 def api_summary(request: Request):
     metrics = overview_metrics(_clinic_id(request))
     return {key: float(value) if isinstance(value, Decimal) else value for key, value in metrics.items()}
+
+
+def _json_safe(value):
+    """Recursively converts psycopg2/Decimal/datetime values the stdlib
+    JSON encoder can't handle on its own — used only by the new React-facing
+    /api/v1/* endpoints (see frontend/); every existing HTML route and
+    /api/summary's own flat conversion above are untouched."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+# ── React frontend API (additive only — every route above is untouched) ──
+# New JSON endpoints for the incremental React migration (services/ve_console/
+# frontend/). Each one reuses the exact same data-fetch function the
+# existing HTML route already calls (e.g. _overview_data()) rather than
+# duplicating query logic, so there is exactly one source of truth per page
+# regardless of which frontend renders it.
+@app.get("/api/v1/session")
+def api_session(request: Request):
+    # require_login's middleware already guarantees a session user exists
+    # by the time this runs (same as /api/summary above, which has no
+    # explicit auth check of its own either) — this just shapes what's
+    # already in the session for the frontend to consume.
+    return {
+        "user": request.session["user"],
+        "clinic": {"id": _clinic_id(request), "name": request.session.get("clinic_name", CLINIC_NAME)},
+    }
+
+
+@app.get("/api/v1/overview")
+def api_overview(request: Request):
+    return _json_safe(_overview_data(_clinic_id(request)))
 
 
 @app.get("/health")

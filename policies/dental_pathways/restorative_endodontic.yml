@@ -1,0 +1,97 @@
+version: 1
+pathway: restorative_endodontic
+title: Restorative & Endodontic Care Pathway
+# PROTOTYPE — see README.md in this directory. Written to prove the
+# state-machine/Temporal design, NOT reviewed by a dental clinical advisor.
+# Do not surface suggestions from this file to a real dentist in production.
+status: prototype
+reviewed_by: null
+specialty: general_dentistry
+
+states:
+  - id: exam_pending
+    title: Initial exam / diagnostic imaging needed
+    entry_codes: []
+    terminal: false
+
+  - id: diagnosed_caries_shallow
+    title: Shallow caries diagnosed — restorable without endo
+    entry_codes: []
+    terminal: false
+
+  - id: diagnosed_caries_deep_pulp_exposure
+    title: Deep caries with pulp exposure
+    entry_codes: []
+    terminal: false
+
+  - id: restoration_placed
+    title: Restoration (filling) placed
+    entry_codes: [D2140, D2150, D2160, D2161, D2330, D2331, D2332, D2335, D2391, D2392, D2393, D2394]
+    terminal: false
+
+  - id: root_canal_completed
+    title: Root canal completed, crown not yet placed
+    entry_codes: [D3310, D3320, D3330]
+    terminal: false
+
+  - id: crown_placed
+    title: Crown placed
+    entry_codes: [D2740, D2750, D2790]
+    terminal: false
+
+  - id: maintenance_recall
+    title: Routine maintenance / recall
+    entry_codes: [D1110]
+    terminal: true
+
+transitions:
+  # exam_pending is this pathway's only entry point (no incoming
+  # transitions) — every case starts here until a diagnosis is confirmed.
+  - from: exam_pending
+    to: diagnosed_caries_shallow
+    trigger: {type: diagnosis_confirmed, code: shallow_caries}
+    priority: 0.8
+
+  - from: exam_pending
+    to: diagnosed_caries_deep_pulp_exposure
+    trigger: {type: diagnosis_confirmed, code: deep_caries_pulp_exposure}
+    priority: 0.8
+
+  - from: diagnosed_caries_shallow
+    to: restoration_placed
+    trigger:
+      type: procedure_performed
+      codes: [D2140, D2150, D2160, D2161, D2330, D2331, D2332, D2335, D2391, D2392, D2393, D2394]
+    priority: 1.0
+
+  - from: diagnosed_caries_deep_pulp_exposure
+    to: root_canal_completed
+    trigger: {type: procedure_performed, codes: [D3310, D3320, D3330]}
+    priority: 1.0
+
+  - from: root_canal_completed
+    to: crown_placed
+    trigger: {type: procedure_performed, codes: [D2740, D2750, D2790]}
+    priority: 1.0
+
+  # A lower-priority reminder edge: if a crown hasn't been placed within
+  # two weeks of the root canal, the case is still allowed to transition to
+  # crown_placed once the procedure happens, but the workflow should
+  # surface a "crown overdue" signal in the meantime — represented here as
+  # a distinct, lower-priority path to the same target so the ranker (once
+  # it exists) can distinguish "on schedule" from "overdue" if it ever
+  # matters, without changing the graph's shape.
+  - from: root_canal_completed
+    to: crown_placed
+    trigger: {type: time_elapsed, min_days: 14}
+    priority: 0.5
+
+  - from: restoration_placed
+    to: maintenance_recall
+    trigger: {type: time_elapsed, min_days: 180}
+    priority: 1.0
+
+  - from: crown_placed
+    to: maintenance_recall
+    trigger: {type: time_elapsed, min_days: 180}
+    priority: 1.0

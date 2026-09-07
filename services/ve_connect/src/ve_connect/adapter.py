@@ -248,6 +248,25 @@ def upsert_clinical_extraction(
     return extraction_id
 
 
+def pull_raw_resources(pid: str) -> dict:
+    """Returns the exact raw FHIR resources _resolve_and_upsert() fetches
+    for a patient, before map_patient_to_features() ever touches them —
+    diagnostic-only, for seeing what Epic actually sent prior to any
+    mapping/derivation. Same non-persistence discipline as
+    _pull_clinical_notes(): nothing here is written to Postgres or disk,
+    only returned transiently over HTTP by the /patients/{id}/raw endpoint.
+    Same resource set and search parameters as _resolve_and_upsert, so this
+    reflects the pipeline's real input, not a separate/different pull."""
+    return {
+        "patient": get_resource("Patient", pid),
+        "conditions": search_resources("Condition", {"patient": pid, "clinical-status": "active"}),
+        "encounters": search_resources("Encounter", {"patient": pid, "status": "finished", "_count": "50"}),
+        "procedures": search_resources("Procedure", {"patient": pid, "status": "completed", "_count": "20"}),
+        "careplans": _careplans_or_empty(pid),
+        "coverages": search_resources("Coverage", {"patient": pid, "status": "active"}),
+    }
+
+
 def _resolve_and_upsert(conn, pid: str, patient: dict | None = None) -> None:
     """Fetch one patient's clinical resources, map to features, and upsert.
     Shared by pull_patient_cohort (Encounter-discovered IDs) and

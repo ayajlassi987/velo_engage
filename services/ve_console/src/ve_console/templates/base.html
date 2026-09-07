@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#123d32">
-  <title>{{ title }} | Velo Engage</title>
+  <meta name="theme-color" content="#0e2a5c">
+  <title>{{ title }} | VeloDoc</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="/overview" aria-label="Velo Engage overview">
-        <span class="brand-mark">VE</span>
-        <span><strong>Velo Engage</strong><small>Clinic growth console</small></span>
+      <a class="brand" href="/overview" aria-label="VeloDoc overview">
+        <span class="brand-mark">VD</span>
+        <span><strong>VeloDoc</strong><small>Clinic growth console</small></span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary navigation">
@@ -38,7 +38,7 @@
       </nav>
 
       <div class="clinic-switcher">
-        <span class="clinic-avatar">AN</span>
+        <span class="clinic-avatar">{{ clinic_name[:2]|upper }}</span>
         <span><strong>{{ clinic_name }}</strong><small>{{ clinic_id }}</small></span>
         <i data-lucide="chevrons-up-down"></i>
       </div>
@@ -56,7 +56,7 @@
     <section class="workspace">
       <header class="topbar">
         <button class="icon-button mobile-menu" id="menu-button" type="button" aria-label="Open navigation"><i data-lucide="menu"></i></button>
-        <div class="breadcrumbs"><span>Velo Engage</span><i data-lucide="chevron-right"></i><strong>{{ title }}</strong></div>
+        <div class="breadcrumbs"><span>VeloDoc</span><i data-lucide="chevron-right"></i><strong>{{ title }}</strong></div>
         <div class="topbar-actions">
           <span class="live-state" title="Data refreshes every 15 seconds"><span></span><b>Live</b></span>
           {% if user and 'admin' in user.roles %}

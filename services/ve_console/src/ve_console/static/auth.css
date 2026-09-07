@@ -7,8 +7,8 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(1100px 520px at 12% -10%, #1d4d41 0%, transparent 60%),
-    radial-gradient(900px 480px at 110% 10%, #123d32 0%, transparent 55%),
+    radial-gradient(1100px 520px at 12% -10%, #163a7d 0%, transparent 60%),
+    radial-gradient(900px 480px at 110% 10%, #0e2a5c 0%, transparent 55%),
     var(--sidebar);
   padding: 24px;
 }
@@ -18,7 +18,7 @@
 .auth-card {
   background: var(--paper);
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(6, 20, 15, .35);
+  box-shadow: 0 20px 60px rgba(8, 18, 40, .35);
   padding: 32px 30px 26px;
 }
 
@@ -37,7 +37,7 @@
   width: 100%;
   min-height: 44px;
   font-size: 14px;
-  box-shadow: 0 8px 20px rgba(20, 125, 100, .25);
+  box-shadow: 0 8px 20px rgba(36, 86, 214, .28);
 }
 
 .auth-banner {
@@ -71,7 +71,7 @@
   border-radius: 10px;
   background: var(--canvas);
 }
-.auth-role-card svg { width: 16px; margin-top: 2px; color: var(--green); flex: 0 0 auto; }
+.auth-role-card svg { width: 16px; margin-top: 2px; color: var(--brand); flex: 0 0 auto; }
 .auth-role-card strong { display: block; font-size: 12.5px; }
 .auth-role-card small { color: var(--faint); font-size: 11px; line-height: 1.4; }
 

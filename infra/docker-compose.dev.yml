@@ -149,6 +149,111 @@ services:
       vault:
         condition: service_healthy
 
+  # --- Dental treatment-pathway prototype (ve_connect_dental +
+  # ve_treatment_planner) — see policies/dental_pathways/README.md before
+  # treating anything these three services produce as real. Sibling to
+  # ve_connect/ve_orchestrator above, not a modification of either; Epic's
+  # integration is untouched by this work.
+
+  ve_connect_dental:
+    build:
+      context: ..
+      dockerfile: services/ve_connect_dental/Dockerfile
+    container_name: ve_connect_dental
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      CLINIC_ID: clinic_alnoor_001
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+      # Phase A (services/ve_connect_dental/README.md): point this at
+      # wherever your self-hosted OpenDental MySQL is actually reachable
+      # from inside this compose network — e.g. host.docker.internal on
+      # Docker Desktop, or a Windows VM's IP if OpenDental runs there.
+      # There's no default that's correct for every setup.
+      OPENDENTAL_TRANSPORT: mysql
+      OPENDENTAL_DB_HOST: host.docker.internal
+      OPENDENTAL_DB_PORT: 3306
+      OPENDENTAL_DB_NAME: opendental
+      OPENDENTAL_DB_USER: opendental
+      OPENDENTAL_DB_PASSWORD: ""
+    ports:
+      - "8010:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  ve_treatment_planner:
+    build:
+      context: ..
+      dockerfile: services/ve_treatment_planner/Dockerfile
+    container_name: ve_treatment_planner
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      TEMPORAL_ADDRESS: temporal:7233
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    ports:
+      - "8011:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      vault:
+        condition: service_healthy
+
+  # Separate container, same image as ve_treatment_planner above, running
+  # the Temporal worker process instead of the FastAPI front door — same
+  # split ve_orchestrator uses between its own worker and its (manually
+  # triggered, see TESTING_GUIDE.md) schedule. Both this and
+  # ve_treatment_planner need to be up for a case workflow to actually do
+  # anything: one starts/signals/queries it, the other executes it.
+  ve_treatment_planner_worker:
+    build:
+      context: ..
+      dockerfile: services/ve_treatment_planner/Dockerfile
+    container_name: ve_treatment_planner_worker
+    restart: unless-stopped
+    command: ["python", "-m", "ve_treatment_planner.worker"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: velodb
+      DB_USER: velo
+      DB_PASSWORD: velo_secret
+      TEMPORAL_ADDRESS: temporal:7233
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: velo_vault_root
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      vault:
+        condition: service_healthy
+
   ve_reach:
     build:
       context: ..

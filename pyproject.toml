@@ -44,8 +44,10 @@ members = [
     "services/ve_reach",
     "services/ve_connect",
     "services/ve_clinical_intel",
+    "services/ve_connect_dental",
+    "services/ve_treatment_planner",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "ml", "services/ve_connect/src", "services/ve_orchestrator/src", "services/ve_console/src", "services/ve_reach/src", "services/ve_clinical_intel/src"]
+pythonpath = [".", "ml", "services/ve_connect/src", "services/ve_orchestrator/src", "services/ve_console/src", "services/ve_reach/src", "services/ve_clinical_intel/src", "services/ve_connect_dental/src", "services/ve_treatment_planner/src"]

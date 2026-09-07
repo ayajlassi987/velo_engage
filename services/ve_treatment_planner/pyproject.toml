@@ -1,0 +1,21 @@
+[project]
+name = "ve-treatment-planner"
+version = "0.1.0"
+description = "Prototype: dental treatment-pathway state machine (Temporal workflow-per-case) — see policies/dental_pathways/README.md"
+readme = "README.md"
+authors = [
+    { name = "ayajlassi987", email = "ayajlassi.2504@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.138.1",
+    "psycopg2-binary>=2.9.12",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.2",
+    "temporalio>=1.29.0",
+    "uvicorn>=0.49.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.23,<0.12.0"]
+build-backend = "uv_build"

@@ -1,0 +1,4 @@
+@import "./theme.css";
+
+#root { display: block; width: auto; max-width: none; border: 0; text-align: left; min-height: 100vh; }
+

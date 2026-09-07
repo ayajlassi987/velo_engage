@@ -1,1 +1,1 @@
-"""Velo Engage operational console."""
+"""VeloDoc operational console."""
